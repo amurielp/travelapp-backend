@@ -1,0 +1,10 @@
+ai:
+  provider: mock
+  cache:
+    enabled: false
+
+spring:
+  datasource:
+    url: jdbc:tc:postgresql:16:///travelapp   # Testcontainers
+  flyway:
+    enabled: true

@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.3.0</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>com.travelapp</groupId>
+  <artifactId>travelapp-backend</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <name>TravelApp Backend</name>
+
+  <modules>
+    <module>travel-domain</module>
+    <module>travel-infrastructure</module>
+    <module>travel-ai</module>
+    <module>travel-notifications</module>
+    <module>travel-api</module>         <!-- módulo arranque, depende de todos -->
+  </modules>
+
+  <properties>
+    <java.version>21</java.version>
+    <mapstruct.version>1.5.5.Final</mapstruct.version>
+    <flyway.version>10.13.0</flyway.version>
+    <keycloak.version>24.0.4</keycloak.version>
+    <testcontainers.version>1.19.8</testcontainers.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <!-- Módulos internos -->
+      <dependency>
+        <groupId>com.travelapp</groupId>
+        <artifactId>travel-domain</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.travelapp</groupId>
+        <artifactId>travel-infrastructure</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.travelapp</groupId>
+        <artifactId>travel-ai</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.travelapp</groupId>
+        <artifactId>travel-notifications</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <!-- MapStruct -->
+      <dependency>
+        <groupId>org.mapstruct</groupId>
+        <artifactId>mapstruct</artifactId>
+        <version>${mapstruct.version}</version>
+      </dependency>
+
+      <!-- Testcontainers BOM -->
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>testcontainers-bom</artifactId>
+        <version>${testcontainers.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <dependencies>
+    <!-- Lombok — disponible en todos los módulos -->
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <configuration>
+            <source>21</source>
+            <target>21</target>
+            <annotationProcessorPaths>
+              <!-- Lombok MUST be listed before MapStruct -->
+              <path>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
+              </path>
+              <path>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct-processor</artifactId>
+                <version>${mapstruct.version}</version>
+              </path>
+            </annotationProcessorPaths>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+</project>

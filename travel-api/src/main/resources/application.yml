@@ -1,0 +1,123 @@
+spring:
+  application:
+    name: travelapp-api
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/travelapp}
+    username: ${DB_USER:travelapp}
+    password: ${DB_PASSWORD:travelapp}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+  jpa:
+    hibernate:
+      ddl-auto: validate       # Flyway gestiona el schema, Hibernate solo valida
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  data:
+    redis:
+      url: ${REDIS_URL:redis://localhost:6379}
+
+  # Keycloak como resource server OAuth2
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_URL:http://localhost:8180}/realms/${KEYCLOAK_REALM:travelapp}
+
+server:
+  port: ${PORT:8080}
+  servlet:
+    context-path: /api
+
+ai:
+  provider: ${AI_PROVIDER:mock}
+  cache:
+    enabled: ${AI_CACHE_ENABLED:true}
+    ttl-seconds: 86400
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    oauth2-redirect-url: /swagger-ui/oauth2-redirect.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+
+logging:
+  level:
+    com.travelapp: INFO
+    org.hibernate.SQL: WARN
+
+# ─────────────────────────────────────────────────────────────
+# Service URLs — sobreescritas por cada perfil de entorno.
+# El código Java solo conoce ${services.ai-service.url}.
+# El entorno decide si es localhost:8000 o http://ai-service
+# ─────────────────────────────────────────────────────────────
+services:
+  ai-service:
+    url: ${AI_SERVICE_URL:http://localhost:8000}
+    connect-timeout-ms: 3000
+    read-timeout-ms: 30000   # parsing de PDFs puede tardar
+    retry:
+      max-attempts: 2
+      backoff-ms: 500
+  travel-core:
+    url: ${TRAVEL_CORE_URL:http://localhost:8080}
+
+  # APIs externas — también configurables por entorno
+  google-places:
+    url: https://maps.googleapis.com/maps/api
+    api-key: ${GOOGLE_PLACES_API_KEY:}
+  openweather:
+    url: https://api.openweathermap.org/data/2.5
+    api-key: ${OPENWEATHER_API_KEY:}
+  ticketmaster:
+    url: https://app.ticketmaster.com/discovery/v2
+    api-key: ${TICKETMASTER_API_KEY:}
+  open-exchange-rates:
+    url: https://openexchangerates.org/api
+    app-id: ${OPEN_EXCHANGE_RATES_APP_ID:}
+
+# ─────────────────────────────────────────────────────────────
+# OpenTelemetry — distributed tracing hacia el OTEL Collector
+# El Collector reenvía a Jaeger. La app solo conoce el Collector.
+# ─────────────────────────────────────────────────────────────
+management:
+  tracing:
+    sampling:
+      probability: ${OTEL_SAMPLING_PROBABILITY:1.0}   # local: 100%, prod: 0.1 (10%)
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/traces
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: travel-core
+      env: ${SPRING_PROFILES_ACTIVE:local}
+
+spring:
+  application:
+    name: travel-core   # aparece como "service.name" en Jaeger

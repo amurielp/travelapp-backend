@@ -1,0 +1,26 @@
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ""
+
+ai:
+  provider: mock
+  cache:
+    enabled: false
+
+logging:
+  level:
+    com.travelapp: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql: TRACE
+
+services:
+  ai-service:
+    url: http://localhost:8000
+  travel-core:
+    url: http://localhost:8080

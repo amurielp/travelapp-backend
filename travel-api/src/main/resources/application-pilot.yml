@@ -1,0 +1,14 @@
+ai:
+  provider: ollama
+  ollama:
+    base-url: ${OLLAMA_BASE_URL:http://ollama:11434}
+    model: ${OLLAMA_MODEL:mistral:7b}
+  cache:
+    enabled: true
+    ttl-seconds: 43200
+
+services:
+  ai-service:
+    url: http://ai-service:8000   # nombre de servicio docker-compose
+  travel-core:
+    url: http://travel-core:8080

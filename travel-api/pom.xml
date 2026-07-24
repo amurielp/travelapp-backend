@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.travelapp</groupId>
+    <artifactId>travelapp-backend</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>travel-api</artifactId>
+  <name>Travel API — arranque + generación OpenAPI</name>
+
+  <dependencies>
+    <dependency><groupId>com.travelapp</groupId><artifactId>travel-domain</artifactId></dependency>
+    <dependency><groupId>com.travelapp</groupId><artifactId>travel-infrastructure</artifactId></dependency>
+    <dependency><groupId>com.travelapp</groupId><artifactId>travel-ai</artifactId></dependency>
+    <dependency><groupId>com.travelapp</groupId><artifactId>travel-notifications</artifactId></dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-tracing-bridge-otel</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.opentelemetry</groupId>
+      <artifactId>opentelemetry-exporter-otlp</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+    </dependency>
+    <!-- OpenAPI UI — sirve la spec en /swagger-ui.html -->
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+      <version>2.5.0</version>
+    </dependency>
+    <!-- Anotaciones generadas por openapi-generator -->
+    <dependency>
+      <groupId>io.swagger.core.v3</groupId>
+      <artifactId>swagger-annotations</artifactId>
+      <version>2.2.22</version>
+    </dependency>
+    <dependency>
+      <groupId>jakarta.annotation</groupId>
+      <artifactId>jakarta.annotation-api</artifactId>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+
+      <!-- ① openapi-generator: genera interfaces + DTOs en generate-sources -->
+      <plugin>
+        <groupId>org.openapitools</groupId>
+        <artifactId>openapi-generator-maven-plugin</artifactId>
+        <version>7.6.0</version>
+        <configuration>
+          <!-- Windows: absolute path with drive letter fails URI parsing in swagger-parser.
+               Remove this skip when running with the corporate proxy (mvn -Pmicro). -->
+          <skip>true</skip>
+        </configuration>
+        <executions>
+          <execution>
+            <id>generate-api</id>
+            <!-- Se ejecuta en generate-sources, ANTES de compile -->
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+            <configuration>
+              <!-- Fuente de verdad -->
+              <inputSpec>classpath:openapi/travelapp-api.yaml</inputSpec>
+
+              <!-- Generador Spring Boot — produce interfaces con @RequestMapping -->
+              <generatorName>spring</generatorName>
+
+              <!-- Paquetes de salida -->
+              <apiPackage>com.travelapp.web.api</apiPackage>
+              <modelPackage>com.travelapp.web.dto</modelPackage>
+              <invokerPackage>com.travelapp.web</invokerPackage>
+
+              <!-- Directorio de salida — Maven lo añade al source path -->
+              <output>${project.build.directory}/generated-sources/openapi</output>
+
+              <configOptions>
+                <!-- Modo interface-only: genera interfaces, NO implementaciones.
+                     Nuestros @RestController implementan esas interfaces. -->
+                <interfaceOnly>true</interfaceOnly>
+
+                <!-- Usa la anotación @RequestMapping de Spring MVC -->
+                <useSpringBoot3>true</useSpringBoot3>
+
+                <!-- DTOs como Java records (Java 21) -->
+                <useJakartaEe>true</useJakartaEe>
+                <openApiNullable>false</openApiNullable>
+
+                <!-- Fechas como java.time.* -->
+                <dateLibrary>java8</dateLibrary>
+
+                <!-- Validaciones Jakarta Bean Validation en los DTOs -->
+                <useBeanValidation>true</useBeanValidation>
+                <performBeanValidation>true</performBeanValidation>
+
+                <!-- Genera anotaciones @Tag, @Operation de OpenAPI en las interfaces -->
+                <documentationProvider>springdoc</documentationProvider>
+
+                <!-- Delegación: el generador crea una interfaz *Delegate
+                     que nuestro @Service implementa. El @Controller generado
+                     delega en ella. Separa routing de lógica. -->
+                <delegatePattern>false</delegatePattern>
+              </configOptions>
+
+              <!-- Windows path workaround: skip URI-based spec validator -->
+              <validateSpec>false</validateSpec>
+
+              <!-- No generar: tests, documentación HTML, cliente -->
+              <generateApiTests>false</generateApiTests>
+              <generateModelTests>false</generateModelTests>
+              <generateApiDocumentation>false</generateApiDocumentation>
+              <generateModelDocumentation>true</generateModelDocumentation>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- ② build-helper: añade el directorio generado al source path de Maven -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>3.6.0</version>
+        <executions>
+          <execution>
+            <id>add-generated-sources</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>add-source</goal>
+            </goals>
+            <configuration>
+              <sources>
+                <source>
+                  ${project.build.directory}/generated-sources/openapi/src/main/java
+                </source>
+              </sources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- ③ Spring Boot Maven Plugin — genera el fat JAR ejecutable -->
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <configuration>
+          <excludes>
+            <exclude>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+            </exclude>
+          </excludes>
+        </configuration>
+      </plugin>
+
+    </plugins>
+  </build>
+</project>

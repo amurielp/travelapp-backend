@@ -1,0 +1,27 @@
+# Perfil activo en Kubernetes (pre y prod).
+# Istio resuelve "http://ai-service" al pod correcto via service discovery.
+# mTLS lo gestiona Istio — la app no necesita certificados.
+
+services:
+  ai-service:
+    url: http://ai-service          # Kubernetes Service name — Istio añade mTLS
+    connect-timeout-ms: 3000
+    read-timeout-ms: 45000          # prod: más margen para cold start de Ollama
+    retry:
+      max-attempts: 3
+      backoff-ms: 1000
+  travel-core:
+    url: http://travel-core
+
+spring:
+  jpa:
+    show-sql: false
+  data:
+    redis:
+      url: ${REDIS_URL}
+
+logging:
+  level:
+    com.travelapp: INFO
+    # Istio ya recoge traces — no necesitamos logs de cada request HTTP
+    org.springframework.web: WARN

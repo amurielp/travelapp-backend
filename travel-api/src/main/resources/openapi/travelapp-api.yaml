@@ -1,0 +1,1108 @@
+openapi: 3.1.0
+
+info:
+  title: TravelApp API
+  version: 1.0.0
+  description: |
+    API REST de TravelApp. Fuente de verdad — los controllers y DTOs
+    de Spring Boot se generan automáticamente desde este fichero
+    con openapi-generator en el step `compile` de Maven.
+  contact:
+    name: TravelApp Team
+
+servers:
+  - url: http://localhost:8080/api
+    description: Local
+  - url: https://api.travelapp.com/api
+    description: Producción
+
+security:
+  - bearerAuth: []
+
+# ─────────────────────────────────────────────────────────────
+# TAGS
+# ─────────────────────────────────────────────────────────────
+tags:
+  - name: Users
+  - name: Trips
+  - name: Events
+  - name: Budget
+  - name: Documents
+  - name: Wishlist
+  - name: Suggestions
+  - name: Places
+  - name: PaymentMethods
+
+# ─────────────────────────────────────────────────────────────
+# PATHS
+# ─────────────────────────────────────────────────────────────
+paths:
+
+  # ── USERS ─────────────────────────────────────────────────
+  /v1/users/me:
+    get:
+      tags: [Users]
+      operationId: getMe
+      summary: Perfil del usuario autenticado
+      responses:
+        "200": { $ref: '#/components/responses/UserResponse' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+    put:
+      tags: [Users]
+      operationId: updateMe
+      summary: Actualizar perfil
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateUserRequest' }
+      responses:
+        "200": { $ref: '#/components/responses/UserResponse' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+
+  /v1/users/me/preferences:
+    patch:
+      tags: [Users]
+      operationId: updatePreferences
+      summary: Actualizar preferencias del usuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserPreferences' }
+      responses:
+        "200": { $ref: '#/components/responses/UserResponse' }
+
+  # ── TRIPS ──────────────────────────────────────────────────
+  /v1/trips:
+    get:
+      tags: [Trips]
+      operationId: listTrips
+      summary: Listar viajes propios y compartidos
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Size' }
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PLANNING, ACTIVE, COMPLETED, ARCHIVED]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TripPage' }
+
+    post:
+      tags: [Trips]
+      operationId: createTrip
+      summary: Crear un viaje
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTripRequest' }
+      responses:
+        "201": { $ref: '#/components/responses/TripResponse' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+
+  /v1/trips/{tripId}:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+    get:
+      tags: [Trips]
+      operationId: getTrip
+      summary: Detalle de un viaje
+      responses:
+        "200": { $ref: '#/components/responses/TripResponse' }
+        "404": { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Trips]
+      operationId: updateTrip
+      summary: Actualizar un viaje
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateTripRequest' }
+      responses:
+        "200": { $ref: '#/components/responses/TripResponse' }
+    delete:
+      tags: [Trips]
+      operationId: deleteTrip
+      summary: Eliminar un viaje
+      responses:
+        "204": { description: Eliminado }
+        "403": { $ref: '#/components/responses/Forbidden' }
+
+  /v1/trips/{tripId}/publish:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+    post:
+      tags: [Trips]
+      operationId: publishTrip
+      summary: Publicar itinerario (URL pública)
+      responses:
+        "200": { $ref: '#/components/responses/TripResponse' }
+
+  /v1/trips/public/{slug}:
+    get:
+      tags: [Trips]
+      operationId: getPublicTrip
+      summary: Itinerario público (sin autenticación)
+      security: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { $ref: '#/components/responses/TripResponse' }
+        "404": { $ref: '#/components/responses/NotFound' }
+
+  # ── EVENTS ─────────────────────────────────────────────────
+  /v1/trips/{tripId}/events:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+    get:
+      tags: [Events]
+      operationId: listEvents
+      summary: Eventos del viaje (calendario completo)
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [FLIGHT, ACCOMMODATION, ACTIVITY, TRANSPORT, CUSTOM]
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [CONFIRMED, TENTATIVE, CANCELLED]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/EventResponse' }
+
+    post:
+      tags: [Events]
+      operationId: createEvent
+      summary: Crear evento manualmente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateEventRequest' }
+      responses:
+        "201": { $ref: '#/components/responses/EventResponse' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+        "409":
+          description: Conflicto de horario
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /v1/trips/{tripId}/events/{eventId}:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+      - { $ref: '#/components/parameters/EventId' }
+    get:
+      tags: [Events]
+      operationId: getEvent
+      summary: Detalle de un evento
+      responses:
+        "200": { $ref: '#/components/responses/EventResponse' }
+        "404": { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Events]
+      operationId: updateEvent
+      summary: Actualizar un evento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateEventRequest' }
+      responses:
+        "200": { $ref: '#/components/responses/EventResponse' }
+    delete:
+      tags: [Events]
+      operationId: deleteEvent
+      summary: Eliminar un evento
+      responses:
+        "204": { description: Eliminado }
+
+  /v1/trips/{tripId}/events/day/{date}:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+      - name: date
+        in: path
+        required: true
+        schema: { type: string, format: date }
+    get:
+      tags: [Events]
+      operationId: getEventsByDay
+      summary: Eventos de un día concreto
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/EventResponse' }
+
+  /v1/trips/{tripId}/days:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+    get:
+      tags: [Events]
+      operationId: getTripDays
+      summary: Resumen de días — ocupación y huecos libres
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/TripDaySummary' }
+
+  # ── BUDGET ─────────────────────────────────────────────────
+  /v1/trips/{tripId}/budget:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+    get:
+      tags: [Budget]
+      operationId: getBudget
+      summary: Presupuesto completo del viaje
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetResponse' }
+
+  /v1/trips/{tripId}/budget/summary:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+    get:
+      tags: [Budget]
+      operationId: getBudgetSummary
+      summary: Resumen por categoría (estimado vs real)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/BudgetCategorySummary' }
+
+  /v1/trips/{tripId}/budget/items:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+    post:
+      tags: [Budget]
+      operationId: addBudgetItem
+      summary: Añadir gasto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateBudgetItemRequest' }
+      responses:
+        "201":
+          description: Creado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetItemResponse' }
+
+  /v1/trips/{tripId}/budget/items/{itemId}:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+      - name: itemId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [Budget]
+      operationId: updateBudgetItem
+      summary: Actualizar gasto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateBudgetItemRequest' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetItemResponse' }
+    delete:
+      tags: [Budget]
+      operationId: deleteBudgetItem
+      summary: Eliminar gasto
+      responses:
+        "204": { description: Eliminado }
+
+  # ── DOCUMENTS ──────────────────────────────────────────────
+  /v1/trips/{tripId}/documents:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+    get:
+      tags: [Documents]
+      operationId: listDocuments
+      summary: Documentos del viaje
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DocumentResponse' }
+    post:
+      tags: [Documents]
+      operationId: uploadDocument
+      summary: Subir PDF
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "202":
+          description: Aceptado — parsing en curso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocumentResponse' }
+
+  /v1/trips/{tripId}/documents/{documentId}:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+      - { $ref: '#/components/parameters/DocumentId' }
+    get:
+      tags: [Documents]
+      operationId: getDocument
+      summary: Estado del documento y datos parseados
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocumentResponse' }
+
+  /v1/trips/{tripId}/documents/{documentId}/accept:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+      - { $ref: '#/components/parameters/DocumentId' }
+    post:
+      tags: [Documents]
+      operationId: acceptDocument
+      summary: Confirmar eventos parseados del PDF
+      responses:
+        "200":
+          description: Eventos creados
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/EventResponse' }
+
+  # ── WISHLIST ───────────────────────────────────────────────
+  /v1/trips/{tripId}/wishlist:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+    get:
+      tags: [Wishlist]
+      operationId: listWishlist
+      summary: Lista de deseos del viaje
+      parameters:
+        - name: city
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/WishlistItemResponse' }
+    post:
+      tags: [Wishlist]
+      operationId: addWishlistItem
+      summary: Añadir ítem a la wishlist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateWishlistItemRequest' }
+      responses:
+        "201":
+          description: Creado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WishlistItemResponse' }
+
+  /v1/trips/{tripId}/wishlist/{itemId}/schedule:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+      - name: itemId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Wishlist]
+      operationId: scheduleWishlistItem
+      summary: Convertir wishlist item en evento del calendario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [startDatetime]
+              properties:
+                startDatetime: { type: string, format: date-time }
+                endDatetime:   { type: string, format: date-time }
+      responses:
+        "201": { $ref: '#/components/responses/EventResponse' }
+
+  # ── SUGGESTIONS ────────────────────────────────────────────
+  /v1/trips/{tripId}/suggestions:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+    get:
+      tags: [Suggestions]
+      operationId: getSuggestions
+      summary: Sugerencias para un día (IA o Places según feature flag)
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SuggestionResponse' }
+
+  /v1/trips/{tripId}/suggestions/{suggestionId}/accept:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+      - { $ref: '#/components/parameters/SuggestionId' }
+    post:
+      tags: [Suggestions]
+      operationId: acceptSuggestion
+      summary: Aceptar sugerencia → crea evento
+      responses:
+        "201": { $ref: '#/components/responses/EventResponse' }
+
+  /v1/trips/{tripId}/suggestions/{suggestionId}/dismiss:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+      - { $ref: '#/components/parameters/SuggestionId' }
+    post:
+      tags: [Suggestions]
+      operationId: dismissSuggestion
+      summary: Descartar sugerencia
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        "204": { description: Descartada }
+
+  # ── PAYMENT METHODS ───────────────────────────────────────
+  /v1/payment-methods:
+    get:
+      tags: [PaymentMethods]
+      operationId: listPaymentMethods
+      summary: Medios de pago activos del usuario
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PaymentMethodResponse' }
+    post:
+      tags: [PaymentMethods]
+      operationId: createPaymentMethod
+      summary: Crear medio de pago
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreatePaymentMethodRequest' }
+      responses:
+        "201":
+          description: Creado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentMethodResponse' }
+
+  /v1/payment-methods/{methodId}:
+    parameters:
+      - name: methodId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [PaymentMethods]
+      operationId: updatePaymentMethod
+      summary: Actualizar nombre o notas
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdatePaymentMethodRequest' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaymentMethodResponse' }
+    delete:
+      tags: [PaymentMethods]
+      operationId: deletePaymentMethod
+      summary: Eliminar (o desactivar) medio de pago
+      responses:
+        "204": { description: Eliminado }
+
+  /v1/payment-methods/report:
+    get:
+      tags: [PaymentMethods]
+      operationId: getPaymentMethodReport
+      summary: Reporte de gastos agrupados por medio de pago
+      parameters:
+        - name: tripId
+          in: query
+          schema: { type: string, format: uuid }
+          description: Filtrar por viaje
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PaymentMethodReportResponse' }
+
+# ─────────────────────────────────────────────────────────────
+# COMPONENTS
+# ─────────────────────────────────────────────────────────────
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  # ── PARAMETERS ─────────────────────────────────────────────
+  parameters:
+    TripId:
+      name: tripId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    EventId:
+      name: eventId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    DocumentId:
+      name: documentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    SuggestionId:
+      name: suggestionId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, default: 0, minimum: 0 }
+    Size:
+      name: size
+      in: query
+      schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+
+  # ── RESPONSES ──────────────────────────────────────────────
+  responses:
+    UserResponse:
+      description: OK
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/UserResponse' }
+    TripResponse:
+      description: OK
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/TripResponse' }
+    EventResponse:
+      description: OK
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/EventResponse' }
+    BadRequest:
+      description: Validación fallida
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Unauthorized:
+      description: Token ausente o inválido
+    Forbidden:
+      description: Sin permisos sobre el recurso
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  # ── SCHEMAS ────────────────────────────────────────────────
+  schemas:
+
+    # ── Shared ───────────────────────────────────────────────
+    ErrorResponse:
+      type: object
+      properties:
+        status:    { type: integer }
+        error:     { type: string }
+        details:   { type: object }
+        timestamp: { type: string, format: date-time }
+
+    PageMeta:
+      type: object
+      properties:
+        totalElements: { type: integer, format: int64 }
+        totalPages:    { type: integer }
+        number:        { type: integer }
+        size:          { type: integer }
+
+    # ── Users ─────────────────────────────────────────────────
+    UserResponse:
+      type: object
+      properties:
+        id:          { type: string, format: uuid }
+        email:       { type: string }
+        name:        { type: string }
+        avatarUrl:   { type: string }
+        plan:        { type: string, enum: [free, premium] }
+        preferences: { $ref: '#/components/schemas/UserPreferences' }
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        name:      { type: string, maxLength: 120 }
+        avatarUrl: { type: string }
+
+    UserPreferences:
+      type: object
+      properties:
+        interests:   { type: array, items: { type: string } }
+        foodProfile:
+          type: object
+          properties:
+            level:   { type: string, enum: [normal, foodie, gourmet] }
+            prefers: { type: array, items: { type: string } }
+            avoid:   { type: array, items: { type: string } }
+            diet:    { type: string }
+            allergies: { type: array, items: { type: string } }
+        travelStyle:
+          type: object
+          properties:
+            pace:                 { type: string, enum: [relaxed, moderate, intense] }
+            earlyRiser:           { type: boolean }
+            maxActivitiesPerDay:  { type: integer, minimum: 1, maximum: 10 }
+            avoidCrowds:          { type: boolean }
+            fitnessLevel:         { type: string, enum: [low, moderate, high] }
+        budgetLevel:  { type: string, enum: [budget, mid, mid-high, luxury] }
+        language:     { type: string }
+        currency:     { type: string }
+
+    # ── Trips ─────────────────────────────────────────────────
+    TripResponse:
+      type: object
+      properties:
+        id:            { type: string, format: uuid }
+        title:         { type: string }
+        description:   { type: string }
+        status:        { type: string, enum: [PLANNING, ACTIVE, COMPLETED, ARCHIVED] }
+        startDate:     { type: string, format: date }
+        endDate:       { type: string, format: date }
+        baseCurrency:  { type: string }
+        isPublic:      { type: boolean }
+        publicSlug:    { type: string }
+        coverImageUrl: { type: string }
+        createdAt:     { type: string, format: date-time }
+
+    TripPage:
+      allOf:
+        - { $ref: '#/components/schemas/PageMeta' }
+        - type: object
+          properties:
+            content:
+              type: array
+              items: { $ref: '#/components/schemas/TripResponse' }
+
+    CreateTripRequest:
+      type: object
+      required: [title, startDate, endDate]
+      properties:
+        title:        { type: string, minLength: 1, maxLength: 120 }
+        description:  { type: string }
+        startDate:    { type: string, format: date }
+        endDate:      { type: string, format: date }
+        baseCurrency: { type: string, pattern: '^[A-Z]{3}$', default: EUR }
+
+    UpdateTripRequest:
+      type: object
+      properties:
+        title:        { type: string, maxLength: 120 }
+        description:  { type: string }
+        startDate:    { type: string, format: date }
+        endDate:      { type: string, format: date }
+        baseCurrency: { type: string }
+        status:       { type: string, enum: [PLANNING, ACTIVE, COMPLETED, ARCHIVED] }
+
+    # ── Events ────────────────────────────────────────────────
+    EventResponse:
+      type: object
+      properties:
+        id:            { type: string, format: uuid }
+        tripId:        { type: string, format: uuid }
+        type:          { type: string, enum: [FLIGHT, ACCOMMODATION, ACTIVITY, TRANSPORT, CUSTOM] }
+        title:         { type: string }
+        notes:         { type: string }
+        color:         { type: string }
+        startDatetime: { type: string, format: date-time }
+        endDatetime:   { type: string, format: date-time }
+        allDay:        { type: boolean }
+        timezone:      { type: string }
+        status:        { type: string, enum: [CONFIRMED, TENTATIVE, CANCELLED] }
+        source:        { type: string, enum: [MANUAL, PDF_IMPORT, AI_SUGGESTION] }
+        locationName:  { type: string }
+        latitude:      { type: number }
+        longitude:     { type: number }
+        flight:        { $ref: '#/components/schemas/FlightDetail' }
+        accommodation: { $ref: '#/components/schemas/AccommodationDetail' }
+        activity:      { $ref: '#/components/schemas/ActivityDetail' }
+        transport:     { $ref: '#/components/schemas/TransportDetail' }
+
+    CreateEventRequest:
+      type: object
+      required: [type, title, startDatetime]
+      properties:
+        type:          { type: string, enum: [FLIGHT, ACCOMMODATION, ACTIVITY, TRANSPORT, CUSTOM] }
+        title:         { type: string, minLength: 1, maxLength: 200 }
+        notes:         { type: string }
+        color:         { type: string, pattern: '^#[0-9A-Fa-f]{6}$' }
+        startDatetime: { type: string, format: date-time }
+        endDatetime:   { type: string, format: date-time }
+        allDay:        { type: boolean, default: false }
+        timezone:      { type: string, default: Europe/Madrid }
+        locationName:  { type: string }
+        latitude:      { type: number, minimum: -90,  maximum: 90 }
+        longitude:     { type: number, minimum: -180, maximum: 180 }
+        flight:        { $ref: '#/components/schemas/FlightDetail' }
+        accommodation: { $ref: '#/components/schemas/AccommodationDetail' }
+        activity:      { $ref: '#/components/schemas/ActivityDetail' }
+        transport:     { $ref: '#/components/schemas/TransportDetail' }
+
+    UpdateEventRequest:
+      type: object
+      properties:
+        title:         { type: string, maxLength: 200 }
+        notes:         { type: string }
+        color:         { type: string }
+        startDatetime: { type: string, format: date-time }
+        endDatetime:   { type: string, format: date-time }
+        status:        { type: string, enum: [CONFIRMED, TENTATIVE, CANCELLED] }
+        locationName:  { type: string }
+        latitude:      { type: number }
+        longitude:     { type: number }
+        flight:        { $ref: '#/components/schemas/FlightDetail' }
+        accommodation: { $ref: '#/components/schemas/AccommodationDetail' }
+        activity:      { $ref: '#/components/schemas/ActivityDetail' }
+        transport:     { $ref: '#/components/schemas/TransportDetail' }
+
+    FlightDetail:
+      type: object
+      properties:
+        airline:             { type: string }
+        flightNumber:        { type: string }
+        originCity:          { type: string }
+        originIata:          { type: string, maxLength: 3 }
+        originTerminal:      { type: string }
+        destinationCity:     { type: string }
+        destinationIata:     { type: string, maxLength: 3 }
+        destinationTerminal: { type: string }
+        departureAt:         { type: string, format: date-time }
+        arrivalAt:           { type: string, format: date-time }
+        seat:                { type: string }
+        cabinClass:          { type: string, enum: [economy, premium_economy, business, first] }
+        bookingRef:          { type: string }
+        baggageAllowance:    { type: string }
+
+    AccommodationDetail:
+      type: object
+      properties:
+        name:               { type: string }
+        accommodationType:  { type: string, enum: [hotel, apartment, hostel, airbnb, other] }
+        address:            { type: string }
+        city:               { type: string }
+        country:            { type: string }
+        latitude:           { type: number }
+        longitude:          { type: number }
+        checkInDate:        { type: string, format: date }
+        checkOutDate:       { type: string, format: date }
+        checkInTime:        { type: string, pattern: '^\d{2}:\d{2}$' }
+        checkOutTime:       { type: string, pattern: '^\d{2}:\d{2}$' }
+        totalNights:        { type: integer, readOnly: true }
+        bookingRef:         { type: string }
+        bookingPlatform:    { type: string }
+        includesBreakfast:  { type: boolean }
+
+    ActivityDetail:
+      type: object
+      properties:
+        venueName:         { type: string }
+        address:           { type: string }
+        category:          { type: string }
+        bookingRef:        { type: string }
+        ticketUrl:         { type: string }
+        numPeople:         { type: integer, minimum: 1 }
+        externalPlaceId:   { type: string }
+        rating:            { type: number, minimum: 0, maximum: 5 }
+        websiteUrl:        { type: string }
+
+    TransportDetail:
+      type: object
+      properties:
+        transportType:      { type: string, enum: [train, bus, car_rental, taxi, ferry, metro, other] }
+        provider:           { type: string }
+        originName:         { type: string }
+        originAddress:      { type: string }
+        destinationName:    { type: string }
+        destinationAddress: { type: string }
+        bookingRef:         { type: string }
+        seatNumber:         { type: string }
+        vehicleDetails:     { type: string }
+
+    TripDaySummary:
+      type: object
+      properties:
+        date:            { type: string, format: date }
+        destinationCity: { type: string }
+        latitude:        { type: number }
+        longitude:       { type: number }
+        occupancy:       { type: string, enum: [free, partial, full] }
+        freeSlots:
+          type: array
+          items:
+            type: object
+            properties:
+              from: { type: string, pattern: '^\d{2}:\d{2}$' }
+              to:   { type: string, pattern: '^\d{2}:\d{2}$' }
+        eventCount:      { type: integer }
+
+    # ── Budget ────────────────────────────────────────────────
+    BudgetResponse:
+      type: object
+      properties:
+        id:         { type: string, format: uuid }
+        currency:   { type: string }
+        totalLimit: { type: number }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/BudgetItemResponse' }
+
+    BudgetItemResponse:
+      type: object
+      properties:
+        id:               { type: string, format: uuid }
+        eventId:          { type: string, format: uuid }
+        category:         { type: string, enum: [transport, accommodation, food, activities, shopping, other] }
+        description:      { type: string }
+        amountEstimated:  { type: number }
+        amountActual:     { type: number }
+        currency:         { type: string }
+        isPaid:           { type: boolean }
+        paidAt:           { type: string, format: date-time }
+
+    BudgetCategorySummary:
+      type: object
+      properties:
+        category:       { type: string }
+        limitAmount:    { type: number }
+        totalEstimated: { type: number }
+        totalActual:    { type: number }
+        numItems:       { type: integer }
+        numPaid:        { type: integer }
+        percentageUsed: { type: number }
+
+    CreateBudgetItemRequest:
+      type: object
+      required: [category, description, amountEstimated]
+      properties:
+        eventId:          { type: string, format: uuid }
+        category:         { type: string, enum: [transport, accommodation, food, activities, shopping, other] }
+        description:      { type: string, minLength: 1 }
+        amountEstimated:  { type: number, minimum: 0 }
+        currency:         { type: string, default: EUR }
+
+    UpdateBudgetItemRequest:
+      type: object
+      properties:
+        description:    { type: string }
+        amountEstimated: { type: number }
+        amountActual:   { type: number }
+        isPaid:         { type: boolean }
+        paidAt:         { type: string, format: date-time }
+
+    # ── Documents ─────────────────────────────────────────────
+    DocumentResponse:
+      type: object
+      properties:
+        id:          { type: string, format: uuid }
+        fileName:    { type: string }
+        fileType:    { type: string }
+        parseStatus: { type: string, enum: [pending, processing, done, failed] }
+        parsedData:  { type: object }
+        parseError:  { type: string }
+        uploadedAt:  { type: string, format: date-time }
+
+    # ── Wishlist ──────────────────────────────────────────────
+    WishlistItemResponse:
+      type: object
+      properties:
+        id:              { type: string, format: uuid }
+        name:            { type: string }
+        category:        { type: string }
+        destinationCity: { type: string }
+        latitude:        { type: number }
+        longitude:       { type: number }
+        priority:        { type: integer, enum: [1, 2, 3] }
+        rating:          { type: number }
+        estimatedCost:   { type: number }
+        websiteUrl:      { type: string }
+        convertedToEventId: { type: string, format: uuid }
+
+    CreateWishlistItemRequest:
+      type: object
+      required: [name]
+      properties:
+        name:            { type: string, minLength: 1 }
+        category:        { type: string }
+        destinationCity: { type: string }
+        latitude:        { type: number }
+        longitude:       { type: number }
+        priority:        { type: integer, enum: [1, 2, 3], default: 2 }
+        externalPlaceId: { type: string }
+        websiteUrl:      { type: string }
+        estimatedCost:   { type: number }
+
+    # ── Suggestions ───────────────────────────────────────────
+    SuggestionResponse:
+      type: object
+      properties:
+        id:                   { type: string, format: uuid }
+        name:                 { type: string }
+        category:             { type: string }
+        description:          { type: string }
+        reasoning:            { type: string }
+        estimatedDurationMin: { type: integer }
+        estimatedCostEur:     { type: number }
+        bestTimeOfDay:        { type: string, enum: [morning, afternoon, evening, any] }
+        latitude:             { type: number }
+        longitude:            { type: number }
+        websiteUrl:           { type: string }
+        source:               { type: string, enum: [ai_generated, places_api, ticketmaster] }
+        status:               { type: string, enum: [pending, accepted, dismissed] }
+
+    # ── Payment Methods ──────────────────────────────────────
+    PaymentMethodResponse:
+      type: object
+      properties:
+        id:       { type: string, format: uuid }
+        name:     { type: string }
+        type:     { type: string, enum: [card, transfer, cash, crypto, other] }
+        isActive: { type: boolean }
+        notes:    { type: string }
+
+    CreatePaymentMethodRequest:
+      type: object
+      required: [name, type]
+      properties:
+        name:  { type: string, minLength: 1, maxLength: 80 }
+        type:  { type: string, enum: [card, transfer, cash, crypto, other] }
+        notes: { type: string }
+
+    UpdatePaymentMethodRequest:
+      type: object
+      properties:
+        name:      { type: string, maxLength: 80 }
+        notes:     { type: string }
+        isActive:  { type: boolean }
+        sortOrder: { type: integer }
+
+    PaymentMethodReportResponse:
+      type: object
+      properties:
+        paymentMethodId:   { type: string, format: uuid }
+        paymentMethodName: { type: string }
+        type:              { type: string }
+        currency:          { type: string }
+        totalConfirmed:    { type: number }
+        totalReserved:     { type: number }
+        totalPending:      { type: number }
+        totalAll:          { type: number }
+        numExpenses:       { type: integer }
+        lines:
+          type: array
+          items: { $ref: '#/components/schemas/PaymentMethodReportLine' }
+
+    PaymentMethodReportLine:
+      type: object
+      properties:
+        expenseType:    { type: string }
+        description:    { type: string }
+        amount:         { type: number }
+        currency:       { type: string }
+        purchaseStatus: { type: string }
+        paidAt:         { type: string, format: date-time }
+
+    PurchaseStatus:
+      type: string
+      enum: [DRAFT, PENDING, RESERVED, CONFIRMED, CANCELLED, REFUNDED]

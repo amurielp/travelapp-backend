@@ -1,0 +1,11 @@
+target/
+*.class
+*.jar
+!**/src/test/**
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.idea/
+*.iml
