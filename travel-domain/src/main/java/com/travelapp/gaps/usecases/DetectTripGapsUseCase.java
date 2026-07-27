@@ -16,32 +16,14 @@ import java.time.*;
 import java.util.*;
 import java.util.stream.*;
 
-/**
- * Motor de detección de huecos en el itinerario.
- *
- * Se ejecuta:
- *   - Cada vez que se crea, modifica o elimina un evento
- *   - Bajo demanda (botón "Revisar itinerario")
- *   - Por el scheduler de Quartz cada noche
- *
- * Lógica:
- *   1. Carga todos los eventos del viaje (todos los estados excepto CANCELLED/REFUNDED)
- *   2. Construye una línea de tiempo de destinos día a día
- *   3. Detecta cambios de destino sin transporte
- *   4. Detecta llegadas sin alojamiento
- *   5. Detecta días sin alojamiento
- *   6. Detecta conexiones ajustadas (<60 min)
- *   7. Detecta deadlines de cancelación próximos (<48h)
- *   8. Borra los gaps anteriores y persiste los nuevos
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class DetectTripGapsUseCase {
 
-    private static final int MIN_CONNECTION_MINUTES     = 60;
-    private static final int CANCELLATION_ALERT_HOURS   = 48;
-    private static final int PAYMENT_DEADLINE_HOURS     = 72;
+    private static final int MIN_CONNECTION_MINUTES   = 60;
+    private static final int CANCELLATION_ALERT_HOURS = 48;
+    private static final int PAYMENT_DEADLINE_HOURS   = 72;
 
     private final TripRepository    trips;
     private final EventRepository   events;
@@ -64,7 +46,6 @@ public class DetectTripGapsUseCase {
         detected.addAll(detectCancellationDeadlines(allEvents));
         detected.addAll(detectPendingPaymentDeadlines(allEvents));
 
-        // Reemplazar gaps anteriores
         gaps.deleteByTripId(tripId);
         if (!detected.isEmpty()) {
             gaps.saveAll(detected);
@@ -79,33 +60,29 @@ public class DetectTripGapsUseCase {
     private List<TripGap> detectTransportGaps(Trip trip, List<TravelEvent> allEvents) {
         var gaps = new ArrayList<TripGap>();
 
-        // Alojamientos ordenados por check-in — representan los destinos
-        var accommodations = allEvents.stream()
-            .filter(e -> e.getType() == EventType.ACCOMMODATION)
-            .filter(e -> e.getAccommodation() != null)
-            .sorted(Comparator.comparing(e -> e.getAccommodation().getCheckInDate()))
+        var anchors = allEvents.stream()
+            .filter(this::isCityAnchor)
+            .filter(e -> anchorStartDate(e) != null)
+            .sorted(Comparator.comparing(this::anchorStartDate))
             .toList();
 
-        if (accommodations.size() < 2) return gaps;
+        if (anchors.size() < 2) return gaps;
 
-        for (int i = 0; i < accommodations.size() - 1; i++) {
-            var current = accommodations.get(i);
-            var next    = accommodations.get(i + 1);
+        for (int i = 0; i < anchors.size() - 1; i++) {
+            var current = anchors.get(i);
+            var next    = anchors.get(i + 1);
 
-            var currentCheckout = current.getAccommodation().getCheckOutDate();
-            var nextCheckin     = next.getAccommodation().getCheckInDate();
+            var currentCheckout = anchorEndDate(current);
+            var nextCheckin     = anchorStartDate(next);
 
-            // Misma ciudad → no hace falta transporte
             if (sameCity(current, next)) continue;
 
-            // Ciudades distintas → buscar transporte entre esas fechas
             var hasTransport = hasTransportBetween(allEvents,
                 currentCheckout, nextCheckin,
                 current.getLocationName(), next.getLocationName());
 
             if (!hasTransport) {
-                var onlyDrafts = hasOnlyDraftTransportBetween(allEvents,
-                    currentCheckout, nextCheckin);
+                var onlyDrafts = hasOnlyDraftTransportBetween(allEvents, currentCheckout, nextCheckin);
 
                 gaps.add(TripGap.builder()
                     .id(UUID.randomUUID())
@@ -133,12 +110,14 @@ public class DetectTripGapsUseCase {
         var gaps = new ArrayList<TripGap>();
 
         var coveredDays = allEvents.stream()
-            .filter(e -> e.getType() == EventType.ACCOMMODATION && e.getAccommodation() != null)
+            .filter(this::isCityAnchor)
             .flatMap(e -> {
-                var acc = e.getAccommodation();
-                return acc.getCheckInDate().datesUntil(acc.getCheckOutDate());
+                var from = anchorStartDate(e);
+                var to   = anchorEndDate(e);
+                if (from == null || to == null) return Stream.empty();
+                return from.datesUntil(to.plusDays(1));
             })
-            .collect(java.util.stream.Collectors.toSet());
+            .collect(Collectors.toSet());
 
         var tripDays = trip.getStartDate().datesUntil(trip.getEndDate().plusDays(1)).toList();
 
@@ -161,7 +140,6 @@ public class DetectTripGapsUseCase {
                 }
             }
         }
-        // Gap hasta el final del viaje
         if (gapStart != null) {
             var finalGapStart = gapStart;
             gaps.add(TripGap.builder()
@@ -180,25 +158,29 @@ public class DetectTripGapsUseCase {
 
     private List<TripGap> detectTightConnections(List<TravelEvent> allEvents) {
         var gaps = new ArrayList<TripGap>();
+
+        // departure = event.startDatetime, arrival = event.endDatetime
         var flights = allEvents.stream()
             .filter(e -> e.getType() == EventType.FLIGHT && e.getFlight() != null)
-            .sorted(Comparator.comparing(e -> e.getFlight().getDepartureAt()))
+            .filter(e -> e.getStartDatetime() != null)
+            .sorted(Comparator.comparing(TravelEvent::getStartDatetime))
             .toList();
 
         for (int i = 0; i < flights.size() - 1; i++) {
             var current = flights.get(i);
             var next    = flights.get(i + 1);
-            if (current.getFlight().getArrivalAt() == null || next.getFlight().getDepartureAt() == null) continue;
 
-            // Solo conexión si el destino del primero es el origen del siguiente
-            if (!Objects.equals(current.getFlight().getDestinationIata(), next.getFlight().getOriginIata())) continue;
+            if (current.getEndDatetime() == null || next.getStartDatetime() == null) continue;
 
-            var diff = Duration.between(current.getFlight().getArrivalAt(), next.getFlight().getDepartureAt());
+            if (!Objects.equals(current.getFlight().getDestinationIata(),
+                                 next.getFlight().getOriginIata())) continue;
+
+            var diff = Duration.between(current.getEndDatetime(), next.getStartDatetime());
             if (diff.toMinutes() < MIN_CONNECTION_MINUTES && diff.toMinutes() > 0) {
                 gaps.add(TripGap.builder()
                     .id(UUID.randomUUID()).tripId(current.getTripId())
                     .gapType(GapType.TIGHT_CONNECTION).severity(GapSeverity.ERROR)
-                    .affectedFrom(current.getFlight().getArrivalAt().toLocalDate())
+                    .affectedFrom(current.getEndDatetime().toLocalDate())
                     .originIata(current.getFlight().getDestinationIata())
                     .eventIdFrom(current.getId()).eventIdTo(next.getId())
                     .suggestionText("Solo " + diff.toMinutes() + " min de conexión en " +
@@ -257,7 +239,6 @@ public class DetectTripGapsUseCase {
         var gaps      = new ArrayList<TripGap>();
         var threshold = OffsetDateTime.now().plusHours(PAYMENT_DEADLINE_HOURS);
 
-        // Vuelos en PENDING sin fecha de pago que han pasado su deadline
         allEvents.stream()
             .filter(e -> e.getType() == EventType.FLIGHT && e.getFlight() != null)
             .filter(e -> {
@@ -282,6 +263,29 @@ public class DetectTripGapsUseCase {
 
     // ── Helpers ───────────────────────────────────────────────
 
+    private boolean isCityAnchor(TravelEvent e) {
+        if (e.getType() == EventType.ACCOMMODATION) return e.getAccommodation() != null;
+        if (e.getType() == EventType.DESTINATION)
+            return e.getStartDatetime() != null && e.getEndDatetime() != null;
+        return false;
+    }
+
+    private LocalDate anchorStartDate(TravelEvent e) {
+        if (e.getType() == EventType.ACCOMMODATION)
+            return e.getStartDatetime() != null ? e.getStartDatetime().toLocalDate() : null;
+        if (e.getType() == EventType.DESTINATION)
+            return e.getStartDatetime() != null ? e.getStartDatetime().toLocalDate() : null;
+        return null;
+    }
+
+    private LocalDate anchorEndDate(TravelEvent e) {
+        if (e.getType() == EventType.ACCOMMODATION)
+            return e.getEndDatetime() != null ? e.getEndDatetime().toLocalDate() : null;
+        if (e.getType() == EventType.DESTINATION)
+            return e.getEndDatetime() != null ? e.getEndDatetime().toLocalDate() : null;
+        return null;
+    }
+
     private boolean sameCity(TravelEvent a, TravelEvent b) {
         var cityA = a.getLocationName();
         var cityB = b.getLocationName();
@@ -297,15 +301,12 @@ public class DetectTripGapsUseCase {
             .anyMatch(e -> {
                 var start = e.getStartDatetime() != null ? e.getStartDatetime().toLocalDate() : null;
                 if (start == null) return false;
-                var isInRange = !start.isBefore(from) && !start.isAfter(to);
-                if (!isInRange) return false;
-                // Verificar que el transporte sea en la dirección correcta
+                if (start.isBefore(from) || start.isAfter(to)) return false;
                 if (e.getType() == EventType.FLIGHT && e.getFlight() != null) {
                     var f = e.getFlight();
-                    var isPurchased = f.getPurchaseStatus() != null &&
-                        f.getPurchaseStatus().isActive() &&
-                        f.getPurchaseStatus() != com.travelapp.shared.domain.PurchaseStatus.DRAFT;
-                    return isPurchased;
+                    return f.getPurchaseStatus() != null
+                        && f.getPurchaseStatus().isActive()
+                        && f.getPurchaseStatus() != com.travelapp.shared.domain.PurchaseStatus.DRAFT;
                 }
                 return true;
             });

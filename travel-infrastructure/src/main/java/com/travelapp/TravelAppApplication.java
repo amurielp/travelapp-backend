@@ -5,8 +5,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
-@EnableScheduling
 @EnableConfigurationProperties
+@EnableScheduling
 public class TravelAppApplication {
     public static void main(String[] args) {
         SpringApplication.run(TravelAppApplication.class, args);

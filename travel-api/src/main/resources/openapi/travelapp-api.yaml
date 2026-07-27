@@ -175,7 +175,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [FLIGHT, ACCOMMODATION, ACTIVITY, TRANSPORT, CUSTOM]
+            enum: [FLIGHT, ACCOMMODATION, ACTIVITY, TRANSPORT, CUSTOM, DESTINATION]
         - name: from
           in: query
           schema: { type: string, format: date }
@@ -309,6 +309,23 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/BudgetCategorySummary' }
+
+  /v1/trips/{tripId}/budget/timeline:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+    get:
+      tags: [Budget]
+      operationId: getBudgetTimeline
+      summary: Gastos ordenados por fecha prevista de pago
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/BudgetItemResponse' }
+        "404": { $ref: '#/components/responses/NotFound' }
 
   /v1/trips/{tripId}/budget/items:
     parameters:
@@ -797,61 +814,303 @@ components:
         status:       { type: string, enum: [PLANNING, ACTIVE, COMPLETED, ARCHIVED] }
 
     # ── Events ────────────────────────────────────────────────
+
     EventResponse:
+      oneOf:
+        - $ref: '#/components/schemas/FlightEventResponse'
+        - $ref: '#/components/schemas/AccommodationEventResponse'
+        - $ref: '#/components/schemas/ActivityEventResponse'
+        - $ref: '#/components/schemas/TransportEventResponse'
+        - $ref: '#/components/schemas/CustomEventResponse'
+        - $ref: '#/components/schemas/DestinationEventResponse'
+      discriminator:
+        propertyName: type
+        mapping:
+          FLIGHT:        '#/components/schemas/FlightEventResponse'
+          ACCOMMODATION: '#/components/schemas/AccommodationEventResponse'
+          ACTIVITY:      '#/components/schemas/ActivityEventResponse'
+          TRANSPORT:     '#/components/schemas/TransportEventResponse'
+          CUSTOM:        '#/components/schemas/CustomEventResponse'
+          DESTINATION:   '#/components/schemas/DestinationEventResponse'
+
+    EventResponseBase:
       type: object
       properties:
-        id:            { type: string, format: uuid }
-        tripId:        { type: string, format: uuid }
-        type:          { type: string, enum: [FLIGHT, ACCOMMODATION, ACTIVITY, TRANSPORT, CUSTOM] }
-        title:         { type: string }
-        notes:         { type: string }
-        color:         { type: string }
-        startDatetime: { type: string, format: date-time }
-        endDatetime:   { type: string, format: date-time }
-        allDay:        { type: boolean }
-        timezone:      { type: string }
-        status:        { type: string, enum: [CONFIRMED, TENTATIVE, CANCELLED] }
-        source:        { type: string, enum: [MANUAL, PDF_IMPORT, AI_SUGGESTION] }
-        locationName:  { type: string }
-        latitude:      { type: number }
-        longitude:     { type: number }
-        flight:        { $ref: '#/components/schemas/FlightDetail' }
-        accommodation: { $ref: '#/components/schemas/AccommodationDetail' }
-        activity:      { $ref: '#/components/schemas/ActivityDetail' }
-        transport:     { $ref: '#/components/schemas/TransportDetail' }
+        id:
+          type: string
+          format: uuid
+          description: Identificador único del evento.
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        tripId:
+          type: string
+          format: uuid
+          description: Identificador del viaje al que pertenece el evento.
+          example: "550e8400-e29b-41d4-a716-446655440001"
+        documentId:
+          type: string
+          format: uuid
+          description: Documento del que se extrajo el evento (si procede de PDF).
+          example: "550e8400-e29b-41d4-a716-446655440002"
+        type:
+          type: string
+          enum: [FLIGHT, ACCOMMODATION, ACTIVITY, TRANSPORT, CUSTOM, DESTINATION]
+          description: Tipo de evento.
+          example: "FLIGHT"
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Título del evento.
+          example: "Vuelo MAD-BCN"
+        notes:
+          type: string
+          maxLength: 2000
+          description: Notas adicionales del evento.
+          example: "Check-in online realizado"
+        color:
+          type: string
+          minLength: 7
+          maxLength: 7
+          description: Color HEX del evento en el calendario.
+          example: "#1A73E8"
+        startDatetime:
+          type: string
+          format: date-time
+          description: Inicio del evento (ISO 8601 con zona horaria).
+          example: "2025-07-10T08:00:00+02:00"
+        endDatetime:
+          type: string
+          format: date-time
+          description: Fin del evento.
+          example: "2025-07-10T10:00:00+02:00"
+        allDay:
+          type: boolean
+          description: Indica si el evento ocupa todo el día.
+          example: false
+        timezone:
+          type: string
+          minLength: 1
+          maxLength: 60
+          description: Zona horaria IANA del evento.
+          example: "Europe/Madrid"
+        status:
+          type: string
+          enum: [CONFIRMED, TENTATIVE, CANCELLED]
+          description: Estado de confirmación del evento.
+          example: "CONFIRMED"
+        source:
+          type: string
+          enum: [MANUAL, PDF_IMPORT, AI_SUGGESTION]
+          description: Origen del evento.
+          example: "MANUAL"
+        locationName:
+          type: string
+          maxLength: 200
+          description: Nombre del lugar del evento.
+          example: "Aeropuerto Adolfo Suárez Madrid–Barajas"
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+          description: Latitud de la ubicación del evento.
+          example: 40.4983
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+          description: Longitud de la ubicación del evento.
+          example: -3.5676
+
+    FlightEventResponse:
+      allOf:
+        - $ref: '#/components/schemas/EventResponseBase'
+        - type: object
+          properties:
+            flight:
+              $ref: '#/components/schemas/FlightDetail'
+
+    AccommodationEventResponse:
+      allOf:
+        - $ref: '#/components/schemas/EventResponseBase'
+        - type: object
+          properties:
+            accommodation:
+              $ref: '#/components/schemas/AccommodationDetail'
+
+    ActivityEventResponse:
+      allOf:
+        - $ref: '#/components/schemas/EventResponseBase'
+        - type: object
+          properties:
+            activity:
+              $ref: '#/components/schemas/ActivityDetail'
+
+    TransportEventResponse:
+      allOf:
+        - $ref: '#/components/schemas/EventResponseBase'
+        - type: object
+          properties:
+            transport:
+              $ref: '#/components/schemas/TransportDetail'
+
+    CustomEventResponse:
+      allOf:
+        - $ref: '#/components/schemas/EventResponseBase'
+
+    DestinationEventResponse:
+      allOf:
+        - $ref: '#/components/schemas/EventResponseBase'
 
     CreateEventRequest:
+      oneOf:
+        - $ref: '#/components/schemas/CreateFlightEventRequest'
+        - $ref: '#/components/schemas/CreateAccommodationEventRequest'
+        - $ref: '#/components/schemas/CreateActivityEventRequest'
+        - $ref: '#/components/schemas/CreateTransportEventRequest'
+        - $ref: '#/components/schemas/CreateCustomEventRequest'
+        - $ref: '#/components/schemas/CreateDestinationEventRequest'
+      discriminator:
+        propertyName: type
+        mapping:
+          FLIGHT:        '#/components/schemas/CreateFlightEventRequest'
+          ACCOMMODATION: '#/components/schemas/CreateAccommodationEventRequest'
+          ACTIVITY:      '#/components/schemas/CreateActivityEventRequest'
+          TRANSPORT:     '#/components/schemas/CreateTransportEventRequest'
+          CUSTOM:        '#/components/schemas/CreateCustomEventRequest'
+          DESTINATION:   '#/components/schemas/CreateDestinationEventRequest'
+
+    EventBase:
       type: object
       required: [type, title, startDatetime]
       properties:
-        type:          { type: string, enum: [FLIGHT, ACCOMMODATION, ACTIVITY, TRANSPORT, CUSTOM] }
-        title:         { type: string, minLength: 1, maxLength: 200 }
-        notes:         { type: string }
-        color:         { type: string, pattern: '^#[0-9A-Fa-f]{6}$' }
-        startDatetime: { type: string, format: date-time }
-        endDatetime:   { type: string, format: date-time }
-        allDay:        { type: boolean, default: false }
-        timezone:      { type: string, default: Europe/Madrid }
-        locationName:  { type: string }
-        latitude:      { type: number, minimum: -90,  maximum: 90 }
-        longitude:     { type: number, minimum: -180, maximum: 180 }
-        flight:        { $ref: '#/components/schemas/FlightDetail' }
-        accommodation: { $ref: '#/components/schemas/AccommodationDetail' }
-        activity:      { $ref: '#/components/schemas/ActivityDetail' }
-        transport:     { $ref: '#/components/schemas/TransportDetail' }
+        type:
+          type: string
+          enum: [FLIGHT, ACCOMMODATION, ACTIVITY, TRANSPORT, CUSTOM, DESTINATION]
+          description: Tipo de evento. Determina qué sub-schema de detalle se requiere.
+          example: FLIGHT
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Título del evento.
+          example: "Vuelo MAD-BCN"
+        notes:
+          type: string
+          maxLength: 2000
+          description: Notas adicionales.
+          example: "Check-in online realizado"
+        color:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+          minLength: 7
+          maxLength: 7
+          description: Color HEX para el calendario.
+          example: "#1A73E8"
+        startDatetime:
+          type: string
+          format: date-time
+          description: Fecha y hora de inicio (ISO 8601 con zona horaria).
+          example: "2025-07-10T08:00:00+02:00"
+        endDatetime:
+          type: string
+          format: date-time
+          description: Fecha y hora de fin.
+          example: "2025-07-10T10:00:00+02:00"
+        allDay:
+          type: boolean
+          default: false
+          description: Indica si el evento ocupa todo el día.
+          example: false
+        timezone:
+          type: string
+          minLength: 1
+          maxLength: 60
+          default: Europe/Madrid
+          description: Zona horaria IANA.
+          example: "Europe/Madrid"
+        locationName:
+          type: string
+          maxLength: 200
+          description: Nombre del lugar del evento.
+          example: "Aeropuerto Adolfo Suárez Madrid–Barajas"
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+          description: Latitud de la ubicación.
+          example: 40.4983
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+          description: Longitud de la ubicación.
+          example: -3.5676
+        scheduledPayAt:
+          type: string
+          format: date-time
+          description: Fecha prevista de pago. Se traslada automáticamente al BudgetItem creado con el evento.
+          example: "2025-06-15T10:00:00+02:00"
+
+    CreateFlightEventRequest:
+      allOf:
+        - $ref: '#/components/schemas/EventBase'
+        - type: object
+          required: [flight]
+          properties:
+            flight:
+              $ref: '#/components/schemas/FlightDetail'
+
+    CreateAccommodationEventRequest:
+      allOf:
+        - $ref: '#/components/schemas/EventBase'
+        - type: object
+          required: [accommodation]
+          properties:
+            accommodation:
+              $ref: '#/components/schemas/AccommodationDetail'
+
+    CreateActivityEventRequest:
+      allOf:
+        - $ref: '#/components/schemas/EventBase'
+        - type: object
+          required: [activity]
+          properties:
+            activity:
+              $ref: '#/components/schemas/ActivityDetail'
+
+    CreateTransportEventRequest:
+      allOf:
+        - $ref: '#/components/schemas/EventBase'
+        - type: object
+          required: [transport]
+          properties:
+            transport:
+              $ref: '#/components/schemas/TransportDetail'
+
+    CreateCustomEventRequest:
+      allOf:
+        - $ref: '#/components/schemas/EventBase'
+
+    CreateDestinationEventRequest:
+      allOf:
+        - $ref: '#/components/schemas/EventBase'
 
     UpdateEventRequest:
       type: object
       properties:
-        title:         { type: string, maxLength: 200 }
-        notes:         { type: string }
-        color:         { type: string }
-        startDatetime: { type: string, format: date-time }
-        endDatetime:   { type: string, format: date-time }
-        status:        { type: string, enum: [CONFIRMED, TENTATIVE, CANCELLED] }
-        locationName:  { type: string }
-        latitude:      { type: number }
-        longitude:     { type: number }
+        title:         { type: string, maxLength: 200, description: Nuevo título del evento., example: "Vuelo MAD-BCN actualizado" }
+        notes:         { type: string, maxLength: 2000, description: Notas actualizadas., example: "Embarque puerta B12" }
+        color:         { type: string, minLength: 7, maxLength: 7, description: Nuevo color HEX., example: "#E53935" }
+        startDatetime: { type: string, format: date-time, description: Nueva fecha de inicio., example: "2025-07-10T09:00:00+02:00" }
+        endDatetime:   { type: string, format: date-time, description: Nueva fecha de fin., example: "2025-07-10T11:00:00+02:00" }
+        status:
+          type: string
+          enum: [CONFIRMED, TENTATIVE, CANCELLED]
+          description: Nuevo estado de confirmación.
+          example: "CONFIRMED"
+        locationName:  { type: string, maxLength: 200, description: Nombre del lugar actualizado., example: "Terminal 4S" }
+        latitude:      { type: number, minimum: -90, maximum: 90, description: Latitud actualizada., example: 40.4983 }
+        longitude:     { type: number, minimum: -180, maximum: 180, description: Longitud actualizada., example: -3.5676 }
         flight:        { $ref: '#/components/schemas/FlightDetail' }
         accommodation: { $ref: '#/components/schemas/AccommodationDetail' }
         activity:      { $ref: '#/components/schemas/ActivityDetail' }
@@ -860,65 +1119,326 @@ components:
     FlightDetail:
       type: object
       properties:
-        airline:             { type: string }
-        flightNumber:        { type: string }
-        originCity:          { type: string }
-        originIata:          { type: string, maxLength: 3 }
-        originTerminal:      { type: string }
-        destinationCity:     { type: string }
-        destinationIata:     { type: string, maxLength: 3 }
-        destinationTerminal: { type: string }
-        departureAt:         { type: string, format: date-time }
-        arrivalAt:           { type: string, format: date-time }
-        seat:                { type: string }
-        cabinClass:          { type: string, enum: [economy, premium_economy, business, first] }
-        bookingRef:          { type: string }
-        baggageAllowance:    { type: string }
+        airline:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Nombre de la aerolínea.
+          example: "Iberia"
+        flightNumber:
+          type: string
+          minLength: 2
+          maxLength: 10
+          description: Número de vuelo.
+          example: "IB3721"
+        originCity:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Ciudad de origen.
+          example: "Madrid"
+        originIata:
+          type: string
+          minLength: 3
+          maxLength: 3
+          description: Código IATA del aeropuerto de origen.
+          example: "MAD"
+        originTerminal:
+          type: string
+          maxLength: 10
+          description: Terminal de salida.
+          example: "T4"
+        destinationCity:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Ciudad de destino.
+          example: "Barcelona"
+        destinationIata:
+          type: string
+          minLength: 3
+          maxLength: 3
+          description: Código IATA del aeropuerto de destino.
+          example: "BCN"
+        destinationTerminal:
+          type: string
+          maxLength: 10
+          description: Terminal de llegada.
+          example: "T1"
+        seat:
+          type: string
+          maxLength: 5
+          description: Número de asiento asignado.
+          example: "14A"
+        cabinClass:
+          type: string
+          enum: [economy, premium_economy, business, first]
+          description: Clase de cabina.
+          example: "economy"
+        bookingRef:
+          type: string
+          maxLength: 20
+          description: Localizador de la reserva.
+          example: "ABC123"
+        baggageAllowance:
+          type: string
+          maxLength: 50
+          description: Franquicia de equipaje incluida.
+          example: "23kg + 10kg cabina"
+        purchaseStatus:
+          type: string
+          enum: [DRAFT, PENDING, RESERVED, CONFIRMED, CANCELLED, REFUNDED]
+          description: Estado de compra del vuelo.
+          example: "RESERVED"
+        priceAmount:
+          type: number
+          minimum: 0
+          maximum: 99999.99
+          description: Precio del vuelo.
+          example: 89.99
+        priceCurrency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          description: Moneda del precio (ISO 4217).
+          example: "EUR"
+        pricePerPerson:
+          type: boolean
+          description: Indica si el precio es por persona.
+          example: false
+        numPassengers:
+          type: integer
+          minimum: 1
+          maximum: 9
+          description: Número de pasajeros.
+          example: 2
+        cancellationDeadline:
+          type: string
+          format: date-time
+          description: Fecha límite de cancelación gratuita.
+          example: "2025-07-08T23:59:00+02:00"
+        purchasedAt:
+          type: string
+          format: date-time
+          description: Fecha de compra.
+          example: "2025-06-01T10:30:00+02:00"
 
     AccommodationDetail:
       type: object
+      required: [name]
       properties:
-        name:               { type: string }
-        accommodationType:  { type: string, enum: [hotel, apartment, hostel, airbnb, other] }
-        address:            { type: string }
-        city:               { type: string }
-        country:            { type: string }
-        latitude:           { type: number }
-        longitude:          { type: number }
-        checkInDate:        { type: string, format: date }
-        checkOutDate:       { type: string, format: date }
-        checkInTime:        { type: string, pattern: '^\d{2}:\d{2}$' }
-        checkOutTime:       { type: string, pattern: '^\d{2}:\d{2}$' }
-        totalNights:        { type: integer, readOnly: true }
-        bookingRef:         { type: string }
-        bookingPlatform:    { type: string }
-        includesBreakfast:  { type: boolean }
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Nombre del alojamiento.
+          example: "Hotel Arts Barcelona"
+        accommodationType:
+          type: string
+          enum: [hotel, apartment, hostel, airbnb, other]
+          description: Tipo de alojamiento.
+          example: "hotel"
+        address:
+          type: string
+          maxLength: 300
+          description: Dirección del alojamiento.
+          example: "Carrer de la Marina, 19-21"
+        city:
+          type: string
+          maxLength: 100
+          description: Ciudad del alojamiento.
+          example: "Barcelona"
+        country:
+          type: string
+          maxLength: 100
+          description: País del alojamiento.
+          example: "España"
+        bookingRef:
+          type: string
+          maxLength: 50
+          description: Localizador de la reserva.
+          example: "BCN2025ARTS"
+        bookingPlatform:
+          type: string
+          maxLength: 100
+          description: Plataforma de reserva.
+          example: "Booking.com"
+        includesBreakfast:
+          type: boolean
+          description: Indica si el desayuno está incluido.
+          example: true
+        purchaseStatus:
+          type: string
+          enum: [DRAFT, PENDING, RESERVED, CONFIRMED, CANCELLED, REFUNDED]
+          description: Estado de compra del alojamiento.
+          example: "RESERVED"
+        pricePerNight:
+          type: number
+          minimum: 0
+          maximum: 99999.99
+          description: Precio por noche.
+          example: 150.00
+        totalPrice:
+          type: number
+          minimum: 0
+          maximum: 999999.99
+          description: Precio total (puede diferir del calculado si hay descuentos).
+          example: 580.00
+        priceCurrency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          description: Moneda (ISO 4217).
+          example: "EUR"
+        freeCancellationUntil:
+          type: string
+          format: date-time
+          description: Fecha límite de cancelación gratuita.
+          example: "2025-07-07T23:59:00+02:00"
+        purchasedAt:
+          type: string
+          format: date-time
+          description: Fecha de compra/reserva.
+          example: "2025-06-01T11:00:00+02:00"
 
     ActivityDetail:
       type: object
       properties:
-        venueName:         { type: string }
-        address:           { type: string }
-        category:          { type: string }
-        bookingRef:        { type: string }
-        ticketUrl:         { type: string }
-        numPeople:         { type: integer, minimum: 1 }
-        externalPlaceId:   { type: string }
-        rating:            { type: number, minimum: 0, maximum: 5 }
-        websiteUrl:        { type: string }
+        venueName:
+          type: string
+          maxLength: 200
+          description: Nombre del lugar o recinto de la actividad.
+          example: "Sagrada Família"
+        address:
+          type: string
+          maxLength: 300
+          description: Dirección de la actividad.
+          example: "Carrer de Mallorca, 401"
+        city:
+          type: string
+          maxLength: 100
+          description: Ciudad de la actividad.
+          example: "Barcelona"
+        category:
+          type: string
+          maxLength: 100
+          description: Categoría de la actividad.
+          example: "Monumento"
+        bookingRef:
+          type: string
+          maxLength: 50
+          description: Localizador de la reserva.
+          example: "SF2025ABC"
+        ticketUrl:
+          type: string
+          maxLength: 500
+          description: URL de la entrada o reserva.
+          example: "https://sagradafamilia.org/tickets/ABC123"
+        numPeople:
+          type: integer
+          minimum: 1
+          maximum: 99
+          description: Número de personas.
+          example: 2
+        externalPlaceId:
+          type: string
+          maxLength: 100
+          description: Identificador externo del lugar (Google Places, etc.).
+          example: "ChIJk_s2OA6ipBIRBqNs4flzrQM"
+        rating:
+          type: number
+          minimum: 0
+          maximum: 5
+          description: Valoración del lugar.
+          example: 4.8
+        websiteUrl:
+          type: string
+          maxLength: 500
+          description: Web del lugar.
+          example: "https://sagradafamilia.org"
+        purchaseStatus:
+          type: string
+          enum: [DRAFT, PENDING, RESERVED, CONFIRMED, CANCELLED, REFUNDED]
+          description: Estado de compra de la actividad.
+          example: "CONFIRMED"
+        priceAmount:
+          type: number
+          minimum: 0
+          maximum: 9999.99
+          description: Precio de la actividad.
+          example: 26.00
+        priceCurrency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          description: Moneda (ISO 4217).
+          example: "EUR"
 
     TransportDetail:
       type: object
       properties:
-        transportType:      { type: string, enum: [train, bus, car_rental, taxi, ferry, metro, other] }
-        provider:           { type: string }
-        originName:         { type: string }
-        originAddress:      { type: string }
-        destinationName:    { type: string }
-        destinationAddress: { type: string }
-        bookingRef:         { type: string }
-        seatNumber:         { type: string }
-        vehicleDetails:     { type: string }
+        transportType:
+          type: string
+          enum: [train, bus, car_rental, taxi, ferry, metro, other]
+          description: Tipo de transporte terrestre.
+          example: "train"
+        provider:
+          type: string
+          maxLength: 100
+          description: Proveedor o compañía de transporte.
+          example: "Renfe"
+        originName:
+          type: string
+          maxLength: 200
+          description: Nombre del punto de origen.
+          example: "Barcelona Sants"
+        originAddress:
+          type: string
+          maxLength: 300
+          description: Dirección del punto de origen.
+          example: "Pl. dels Països Catalans, s/n"
+        destinationName:
+          type: string
+          maxLength: 200
+          description: Nombre del destino.
+          example: "Girona"
+        destinationAddress:
+          type: string
+          maxLength: 300
+          description: Dirección del destino.
+          example: "Pl. Espanya, 1"
+        bookingRef:
+          type: string
+          maxLength: 50
+          description: Localizador de la reserva.
+          example: "RNF2025XYZ"
+        seatNumber:
+          type: string
+          maxLength: 10
+          description: Número de asiento.
+          example: "4B"
+        vehicleDetails:
+          type: string
+          maxLength: 200
+          description: Detalles del vehículo o servicio.
+          example: "AVE Clase Turista"
+        purchaseStatus:
+          type: string
+          enum: [DRAFT, PENDING, RESERVED, CONFIRMED, CANCELLED, REFUNDED]
+          description: Estado de compra del transporte.
+          example: "CONFIRMED"
+        priceAmount:
+          type: number
+          minimum: 0
+          maximum: 9999.99
+          description: Precio del trayecto.
+          example: 35.50
+        priceCurrency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          description: Moneda (ISO 4217).
+          example: "EUR"
 
     TripDaySummary:
       type: object
@@ -951,15 +1471,85 @@ components:
     BudgetItemResponse:
       type: object
       properties:
-        id:               { type: string, format: uuid }
-        eventId:          { type: string, format: uuid }
-        category:         { type: string, enum: [transport, accommodation, food, activities, shopping, other] }
-        description:      { type: string }
-        amountEstimated:  { type: number }
-        amountActual:     { type: number }
-        currency:         { type: string }
-        isPaid:           { type: boolean }
-        paidAt:           { type: string, format: date-time }
+        id:
+          type: string
+          format: uuid
+          description: Identificador único del gasto.
+          example: "550e8400-e29b-41d4-a716-446655440010"
+        eventId:
+          type: string
+          format: uuid
+          description: Evento asociado al gasto (si procede de un evento).
+          example: "550e8400-e29b-41d4-a716-446655440020"
+        eventTitle:
+          type: string
+          maxLength: 200
+          description: Título del evento asociado, enriquecido en consulta.
+          example: "Vuelo MAD-BCN"
+        bookingStatus:
+          type: string
+          enum: [DRAFT, PENDING, RESERVED, CONFIRMED, CANCELLED, REFUNDED]
+          description: Estado de compra del evento asociado (si aplica).
+          example: "RESERVED"
+        category:
+          type: string
+          enum: [TRANSPORT, ACCOMMODATION, FOOD, ACTIVITIES, SHOPPING, OTHER]
+          description: Categoría del gasto.
+          example: "TRANSPORT"
+        description:
+          type: string
+          minLength: 1
+          maxLength: 300
+          description: Descripción del gasto.
+          example: "Vuelo ida y vuelta MAD-BCN"
+        amountEstimated:
+          type: number
+          minimum: 0
+          maximum: 999999.99
+          description: Importe estimado del gasto.
+          example: 89.99
+        amountActual:
+          type: number
+          minimum: 0
+          maximum: 999999.99
+          description: Importe real pagado (se rellena tras el pago).
+          example: 85.00
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          description: Moneda del gasto (ISO 4217).
+          example: "EUR"
+        isPaid:
+          type: boolean
+          description: Indica si el gasto ya ha sido pagado.
+          example: false
+        paidAt:
+          type: string
+          format: date-time
+          description: Fecha y hora en que se realizó el pago.
+          example: "2025-06-01T10:30:00+02:00"
+        notes:
+          type: string
+          maxLength: 1000
+          description: Notas adicionales sobre el gasto.
+          example: "Precio con descuento por reserva anticipada"
+        paymentMethodId:
+          type: string
+          format: uuid
+          description: Medio de pago utilizado.
+          example: "550e8400-e29b-41d4-a716-446655440030"
+        scheduledPayAt:
+          type: string
+          format: date-time
+          description: Fecha prevista de pago para alertas y timeline.
+          example: "2025-06-15T10:00:00+02:00"
+        reminderHoursBefore:
+          type: integer
+          minimum: 1
+          maximum: 720
+          description: Horas de antelación para enviar el recordatorio de pago.
+          example: 24
 
     BudgetCategorySummary:
       type: object
@@ -976,20 +1566,103 @@ components:
       type: object
       required: [category, description, amountEstimated]
       properties:
-        eventId:          { type: string, format: uuid }
-        category:         { type: string, enum: [transport, accommodation, food, activities, shopping, other] }
-        description:      { type: string, minLength: 1 }
-        amountEstimated:  { type: number, minimum: 0 }
-        currency:         { type: string, default: EUR }
+        eventId:
+          type: string
+          format: uuid
+          description: Evento asociado al gasto (opcional).
+          example: "550e8400-e29b-41d4-a716-446655440020"
+        category:
+          type: string
+          enum: [TRANSPORT, ACCOMMODATION, FOOD, ACTIVITIES, SHOPPING, OTHER]
+          description: Categoría del gasto.
+          example: "TRANSPORT"
+        description:
+          type: string
+          minLength: 1
+          maxLength: 300
+          description: Descripción del gasto.
+          example: "Vuelo ida y vuelta MAD-BCN"
+        amountEstimated:
+          type: number
+          minimum: 0
+          maximum: 999999.99
+          description: Importe estimado del gasto.
+          example: 89.99
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          default: EUR
+          description: Moneda del gasto (ISO 4217).
+          example: "EUR"
+        notes:
+          type: string
+          maxLength: 1000
+          description: Notas adicionales sobre el gasto.
+          example: "Precio con descuento por reserva anticipada"
+        paymentMethodId:
+          type: string
+          format: uuid
+          description: Medio de pago a utilizar.
+          example: "550e8400-e29b-41d4-a716-446655440030"
+        scheduledPayAt:
+          type: string
+          format: date-time
+          description: Fecha prevista de pago.
+          example: "2025-06-15T10:00:00+02:00"
+        reminderHoursBefore:
+          type: integer
+          minimum: 1
+          maximum: 720
+          description: Horas de antelación para el recordatorio de pago.
+          example: 24
 
     UpdateBudgetItemRequest:
       type: object
       properties:
-        description:    { type: string }
-        amountEstimated: { type: number }
-        amountActual:   { type: number }
-        isPaid:         { type: boolean }
-        paidAt:         { type: string, format: date-time }
+        description:
+          type: string
+          minLength: 1
+          maxLength: 300
+          description: Nueva descripción del gasto.
+          example: "Vuelo ida y vuelta MAD-BCN (con equipaje)"
+        amountEstimated:
+          type: number
+          minimum: 0
+          maximum: 999999.99
+          description: Nuevo importe estimado.
+          example: 99.99
+        amountActual:
+          type: number
+          minimum: 0
+          maximum: 999999.99
+          description: Importe real pagado.
+          example: 85.00
+        isPaid:
+          type: boolean
+          description: Marcar como pagado.
+          example: true
+        notes:
+          type: string
+          maxLength: 1000
+          description: Notas adicionales.
+          example: "Factura guardada en Drive"
+        paymentMethodId:
+          type: string
+          format: uuid
+          description: Medio de pago utilizado.
+          example: "550e8400-e29b-41d4-a716-446655440030"
+        scheduledPayAt:
+          type: string
+          format: date-time
+          description: Nueva fecha prevista de pago.
+          example: "2025-06-20T10:00:00+02:00"
+        reminderHoursBefore:
+          type: integer
+          minimum: 1
+          maximum: 720
+          description: Horas de antelación para el recordatorio.
+          example: 48
 
     # ── Documents ─────────────────────────────────────────────
     DocumentResponse:

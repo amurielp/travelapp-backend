@@ -12,7 +12,7 @@ spring:
       minimum-idle: 2
   jpa:
     hibernate:
-      ddl-auto: validate       # Flyway gestiona el schema, Hibernate solo valida
+      ddl-auto: validate
     show-sql: false
     properties:
       hibernate:
@@ -25,8 +25,6 @@ spring:
   data:
     redis:
       url: ${REDIS_URL:redis://localhost:6379}
-
-  # Keycloak como resource server OAuth2
   security:
     oauth2:
       resourceserver:
@@ -35,8 +33,6 @@ spring:
 
 server:
   port: ${PORT:8080}
-  servlet:
-    context-path: /api
 
 ai:
   provider: ${AI_PROVIDER:mock}
@@ -55,10 +51,23 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
   endpoint:
     health:
       show-details: when_authorized
+  tracing:
+    sampling:
+      probability: ${OTEL_SAMPLING_PROBABILITY:1.0}
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/traces
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: travelapp-api
+      env: ${SPRING_PROFILES_ACTIVE:local}
 
 logging:
   level:
@@ -67,21 +76,17 @@ logging:
 
 # ─────────────────────────────────────────────────────────────
 # Service URLs — sobreescritas por cada perfil de entorno.
-# El código Java solo conoce ${services.ai-service.url}.
-# El entorno decide si es localhost:8000 o http://ai-service
 # ─────────────────────────────────────────────────────────────
 services:
   ai-service:
     url: ${AI_SERVICE_URL:http://localhost:8000}
     connect-timeout-ms: 3000
-    read-timeout-ms: 30000   # parsing de PDFs puede tardar
+    read-timeout-ms: 30000
     retry:
       max-attempts: 2
       backoff-ms: 500
   travel-core:
     url: ${TRAVEL_CORE_URL:http://localhost:8080}
-
-  # APIs externas — también configurables por entorno
   google-places:
     url: https://maps.googleapis.com/maps/api
     api-key: ${GOOGLE_PLACES_API_KEY:}
@@ -94,30 +99,3 @@ services:
   open-exchange-rates:
     url: https://openexchangerates.org/api
     app-id: ${OPEN_EXCHANGE_RATES_APP_ID:}
-
-# ─────────────────────────────────────────────────────────────
-# OpenTelemetry — distributed tracing hacia el OTEL Collector
-# El Collector reenvía a Jaeger. La app solo conoce el Collector.
-# ─────────────────────────────────────────────────────────────
-management:
-  tracing:
-    sampling:
-      probability: ${OTEL_SAMPLING_PROBABILITY:1.0}   # local: 100%, prod: 0.1 (10%)
-  otlp:
-    tracing:
-      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/traces
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
-  metrics:
-    export:
-      prometheus:
-        enabled: true
-    tags:
-      application: travel-core
-      env: ${SPRING_PROFILES_ACTIVE:local}
-
-spring:
-  application:
-    name: travel-core   # aparece como "service.name" en Jaeger

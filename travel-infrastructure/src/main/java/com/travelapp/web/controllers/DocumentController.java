@@ -4,8 +4,8 @@ import com.travelapp.adapters.storage.S3StorageAdapter;
 import com.travelapp.documents.domain.*;
 import com.travelapp.documents.ports.DocumentRepository;
 import com.travelapp.trips.usecases.ValidateTripAccessUseCase;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -19,13 +19,22 @@ import java.util.*;
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/trips/{tripId}/documents")
-@RequiredArgsConstructor
 public class DocumentController {
 
     private final DocumentRepository        docRepo;
     private final S3StorageAdapter          storage;
     private final ValidateTripAccessUseCase validateAccess;
-    private final WebClient                 aiServiceWebClient;  // llama al ai-service para parse
+    private final WebClient                 aiServiceWebClient;
+
+    public DocumentController(DocumentRepository docRepo,
+                               S3StorageAdapter storage,
+                               ValidateTripAccessUseCase validateAccess,
+                               @Qualifier("aiServiceWebClient") WebClient aiServiceWebClient) {
+        this.docRepo            = docRepo;
+        this.storage            = storage;
+        this.validateAccess     = validateAccess;
+        this.aiServiceWebClient = aiServiceWebClient;
+    }
 
     @GetMapping
     public ResponseEntity<List<TravelDocument>> list(

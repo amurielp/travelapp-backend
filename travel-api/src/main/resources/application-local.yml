@@ -13,11 +13,28 @@ ai:
   cache:
     enabled: false
 
+storage:
+  s3:
+    bucket: travelapp-local
+    region: eu-west-1
+    access-key: local
+    secret-key: local
+    endpoint: http://localhost:9000   # LocalStack / MinIO si se levanta; si no, S3 falla en runtime pero arranca
+
+management:
+  tracing:
+    enabled: false
+  otlp:
+    tracing:
+      endpoint: ""
+
 logging:
   level:
     com.travelapp: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql: TRACE
+    io.opentelemetry: OFF
+    io.micrometer.tracing: OFF
 
 services:
   ai-service:

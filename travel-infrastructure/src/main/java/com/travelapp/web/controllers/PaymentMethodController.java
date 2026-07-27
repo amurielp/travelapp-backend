@@ -4,6 +4,7 @@ import com.travelapp.payment.domain.*;
 import com.travelapp.payment.ports.PaymentMethodRepository;
 import com.travelapp.payment.usecases.CreatePaymentMethodUseCase;
 import com.travelapp.payment.usecases.GetPaymentMethodReportUseCase;
+import com.travelapp.shared.exceptions.DomainValidationException;
 import com.travelapp.web.dto.request.CreatePaymentMethodRequest;
 import com.travelapp.web.dto.response.PaymentMethodReportResponse;
 import com.travelapp.web.dto.response.PaymentMethodResponse;
@@ -12,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -37,11 +39,17 @@ public class PaymentMethodController {
 
     @PostMapping
     public ResponseEntity<PaymentMethodResponse> createPaymentMethod(
-            @RequestBody CreatePaymentMethodRequest req,
+            @Valid @RequestBody CreatePaymentMethodRequest req,
             @AuthenticationPrincipal Jwt jwt) {
         var userId = UUID.fromString(jwt.getSubject());
-        var method = createMethod.execute(userId, req.name(),
-            PaymentMethodType.valueOf(req.type().toUpperCase()), req.notes());
+        PaymentMethodType type;
+        try {
+            type = PaymentMethodType.valueOf(req.type().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new DomainValidationException("Tipo de método de pago no válido: " + req.type()
+                + ". Permitidos: CARD, TRANSFER, CASH, CRYPTO, OTHER.");
+        }
+        var method = createMethod.execute(userId, req.name(), type, req.notes());
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(method));
     }
 

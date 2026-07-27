@@ -1,8 +1,10 @@
 package com.travelapp.web.controllers;
 
 import com.travelapp.trips.usecases.ValidateTripAccessUseCase;
+import com.travelapp.web.dto.request.CreateWishlistItemRequest;
 import com.travelapp.wishlist.ports.WishlistRepository;
 import com.travelapp.wishlist.usecases.*;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,14 +30,14 @@ public class WishlistController {
     @PostMapping
     public ResponseEntity<?> add(
             @PathVariable UUID tripId,
-            @RequestBody AddToWishlistCommand cmd,
+            @Valid @RequestBody CreateWishlistItemRequest req,
             @AuthenticationPrincipal Jwt jwt) {
         validateAccess.execute(tripId, UUID.fromString(jwt.getSubject()));
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(addToWishlist.execute(new AddToWishlistCommand(
-                tripId, cmd.name(), cmd.category(), cmd.destinationCity(),
-                cmd.latitude(), cmd.longitude(), cmd.externalPlaceId(),
-                cmd.priority(), cmd.estimatedCost(), cmd.websiteUrl())));
+                tripId, req.name(), req.category(), req.destinationCity(),
+                req.latitude(), req.longitude(), req.externalPlaceId(),
+                req.priority(), req.estimatedCost(), req.websiteUrl())));
     }
 
     @DeleteMapping("/{itemId}")

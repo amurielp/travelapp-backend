@@ -3,7 +3,7 @@ package com.travelapp.events.domain;
 import com.travelapp.shared.domain.PurchaseStatus;
 import lombok.*;
 import java.math.BigDecimal;
-import java.time.*;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Getter @Setter @Builder @NoArgsConstructor @AllArgsConstructor
@@ -16,16 +16,13 @@ public class FlightDetail {
     private String         destinationCity;
     private String         destinationIata;
     private String         destinationTerminal;
-    private OffsetDateTime departureAt;
-    private OffsetDateTime arrivalAt;
     private String         seat;
     private String         cabinClass;
     private String         bookingRef;
     private String         baggageAllowance;
     private boolean        isConnection;
 
-    // ── Campos de compra (nuevos) ─────────────────────────────
-    private PurchaseStatus purchaseStatus;     // DRAFT por defecto
+    private PurchaseStatus purchaseStatus;
     private UUID           paymentMethodId;
     private BigDecimal     priceAmount;
     private String         priceCurrency;

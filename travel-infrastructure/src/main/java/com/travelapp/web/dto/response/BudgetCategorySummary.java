@@ -4,6 +4,10 @@ import java.math.BigDecimal;
 
 public record BudgetCategorySummary(
     String     category,
-    BigDecimal estimated,
-    BigDecimal actual
+    BigDecimal limitAmount,
+    BigDecimal totalEstimated,
+    BigDecimal totalActual,
+    int        numItems,
+    int        numPaid,
+    int        percentageUsed
 ) {}

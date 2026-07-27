@@ -8,12 +8,17 @@ public record BudgetItemResponse(
     UUID           id,
     UUID           budgetId,
     UUID           eventId,
+    String         eventTitle,
+    String         bookingStatus,
     String         category,
     String         description,
     BigDecimal     amountEstimated,
     BigDecimal     amountActual,
     String         currency,
-    boolean        paid,
+    boolean        isPaid,
     OffsetDateTime paidAt,
-    String         notes
+    String         notes,
+    UUID           paymentMethodId,
+    OffsetDateTime scheduledPayAt,
+    Integer        reminderHoursBefore
 ) {}

@@ -1,28 +1,35 @@
 package com.travelapp.web.dto.response;
 
-import com.travelapp.events.domain.*;
+import com.fasterxml.jackson.annotation.*;
+import lombok.*;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-public record EventResponse(
-    UUID                id,
-    UUID                tripId,
-    UUID                documentId,
-    String              type,
-    String              title,
-    String              notes,
-    String              color,
-    OffsetDateTime      startDatetime,
-    OffsetDateTime      endDatetime,
-    boolean             allDay,
-    String              timezone,
-    String              status,
-    String              source,
-    String              locationName,
-    Double              latitude,
-    Double              longitude,
-    FlightDetail        flight,
-    AccommodationDetail accommodation,
-    ActivityDetail      activity,
-    TransportDetail     transport
-) {}
+@Getter @Setter @NoArgsConstructor
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "type", visible = true)
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = FlightEventResponse.class,        name = "FLIGHT"),
+    @JsonSubTypes.Type(value = AccommodationEventResponse.class, name = "ACCOMMODATION"),
+    @JsonSubTypes.Type(value = ActivityEventResponse.class,      name = "ACTIVITY"),
+    @JsonSubTypes.Type(value = TransportEventResponse.class,     name = "TRANSPORT"),
+    @JsonSubTypes.Type(value = CustomEventResponse.class,        name = "CUSTOM"),
+    @JsonSubTypes.Type(value = DestinationEventResponse.class,   name = "DESTINATION"),
+})
+public abstract class EventResponse {
+    protected UUID           id;
+    protected UUID           tripId;
+    protected UUID           documentId;
+    protected String         type;
+    protected String         title;
+    protected String         notes;
+    protected String         color;
+    protected OffsetDateTime startDatetime;
+    protected OffsetDateTime endDatetime;
+    protected boolean        allDay;
+    protected String         timezone;
+    protected String         status;
+    protected String         source;
+    protected String         locationName;
+    protected Double         latitude;
+    protected Double         longitude;
+}

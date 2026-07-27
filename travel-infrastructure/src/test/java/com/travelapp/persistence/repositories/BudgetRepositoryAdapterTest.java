@@ -81,7 +81,7 @@ class BudgetRepositoryAdapterTest {
     @Test
     void getSummaryByTripId_mapsRawRows() {
         var row = new Object[]{"FOOD", new BigDecimal("200"), new BigDecimal("150"), 3L, 2L};
-        when(itemJpa.getCategorySummaryRaw(tripId)).thenReturn(List.of(row));
+        when(itemJpa.getCategorySummaryRaw(tripId)).thenReturn(List.<Object[]>of(row));
 
         var result = adapter.getSummaryByTripId(tripId);
 

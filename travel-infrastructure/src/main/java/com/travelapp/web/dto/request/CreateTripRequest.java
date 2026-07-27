@@ -13,6 +13,7 @@ public record CreateTripRequest(
     @NotNull LocalDate startDate,
     @NotNull LocalDate endDate,
 
+    @NotNull(message = "La moneda base es obligatoria")
     @Pattern(regexp = "^[A-Z]{3}$", message = "Currency must be ISO 4217 (e.g. EUR)")
     String baseCurrency
 ) {}

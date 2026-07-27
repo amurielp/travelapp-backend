@@ -2,11 +2,13 @@ package com.travelapp.persistence.repositories;
 
 import com.travelapp.budget.domain.*;
 import com.travelapp.budget.ports.BudgetRepository;
-import com.travelapp.persistence.entities.BudgetEntity;
+import com.travelapp.persistence.entities.*;
 import com.travelapp.persistence.mappers.BudgetMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.*;
 
 @Repository
@@ -15,6 +17,7 @@ public class BudgetRepositoryAdapter implements BudgetRepository {
 
     private final BudgetJpaRepository     budgetJpa;
     private final BudgetItemJpaRepository itemJpa;
+    private final EventJpaRepository      eventJpa;
     private final BudgetMapper            mapper;
 
     @Override
@@ -30,12 +33,12 @@ public class BudgetRepositoryAdapter implements BudgetRepository {
 
     @Override
     public BudgetItem saveItem(BudgetItem item) {
-        return mapper.itemToDomain(itemJpa.save(mapper.itemToEntity(item)));
+        return enrich(mapper.itemToDomain(itemJpa.save(mapper.itemToEntity(item))));
     }
 
     @Override
     public Optional<BudgetItem> findItemById(UUID id) {
-        return itemJpa.findById(id).map(mapper::itemToDomain);
+        return itemJpa.findById(id).map(mapper::itemToDomain).map(this::enrich);
     }
 
     @Override
@@ -54,9 +57,33 @@ public class BudgetRepositoryAdapter implements BudgetRepository {
             )).toList();
     }
 
+    @Override
+    public List<BudgetItem> findItemsByTripIdOrderByScheduledPayAt(UUID tripId) {
+        return itemJpa.findByTripIdOrderByScheduledPayAt(tripId).stream()
+            .map(mapper::itemToDomain)
+            .map(this::enrich)
+            .toList();
+    }
+
+    @Override
+    public List<BudgetItem> findItemsDueForReminder(OffsetDateTime from, OffsetDateTime to) {
+        return itemJpa.findDueForReminder(from, to).stream()
+            .map(mapper::itemToDomain)
+            .map(this::enrich)
+            .toList();
+    }
+
+    @Override
+    @Transactional
+    public void markReminderSent(UUID itemId, OffsetDateTime sentAt) {
+        itemJpa.markReminderSent(itemId, sentAt);
+    }
+
+    // ---- helpers ----
+
     private Budget loadWithItems(BudgetEntity entity) {
         List<BudgetItem> items = itemJpa.findByBudgetId(entity.getId())
-            .stream().map(mapper::itemToDomain).toList();
+            .stream().map(mapper::itemToDomain).map(this::enrich).toList();
         return Budget.builder()
             .id(entity.getId())
             .tripId(entity.getTripId())
@@ -64,5 +91,38 @@ public class BudgetRepositoryAdapter implements BudgetRepository {
             .totalLimit(entity.getTotalLimit())
             .items(new ArrayList<>(items))
             .build();
+    }
+
+    private BudgetItem enrich(BudgetItem item) {
+        if (item.getEventId() == null) return item;
+        return eventJpa.findById(item.getEventId())
+            .map(e -> BudgetItem.builder()
+                .id(item.getId())
+                .budgetId(item.getBudgetId())
+                .eventId(item.getEventId())
+                .category(item.getCategory())
+                .description(item.getDescription())
+                .amountEstimated(item.getAmountEstimated())
+                .amountActual(item.getAmountActual())
+                .currency(item.getCurrency())
+                .isPaid(item.isPaid())
+                .paidAt(item.getPaidAt())
+                .notes(item.getNotes())
+                .paymentMethodId(item.getPaymentMethodId())
+                .scheduledPayAt(item.getScheduledPayAt())
+                .reminderHoursBefore(item.getReminderHoursBefore())
+                .reminderSentAt(item.getReminderSentAt())
+                .eventTitle(e.getTitle())
+                .bookingStatus(resolveBookingStatus(e))
+                .build())
+            .orElse(item);
+    }
+
+    private String resolveBookingStatus(EventEntity e) {
+        if (e.getFlight()        != null) return e.getFlight().getPurchaseStatus().name();
+        if (e.getAccommodation() != null) return e.getAccommodation().getPurchaseStatus().name();
+        if (e.getActivity()      != null) return e.getActivity().getPurchaseStatus().name();
+        if (e.getTransport()     != null) return e.getTransport().getPurchaseStatus().name();
+        return null;
     }
 }

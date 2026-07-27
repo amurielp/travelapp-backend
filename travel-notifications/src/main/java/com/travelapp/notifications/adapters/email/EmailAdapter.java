@@ -1,20 +1,27 @@
 package com.travelapp.notifications.adapters.email;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.javamail.*;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
+import java.util.Optional;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class EmailAdapter {
 
     private final JavaMailSender mailSender;
 
+    public EmailAdapter(Optional<JavaMailSender> mailSender) {
+        this.mailSender = mailSender.orElse(null);
+    }
+
     public void send(String to, String subject, String templateId, Map<String, Object> vars) {
+        if (mailSender == null) {
+            log.debug("email.noop — mail not configured. subject={}", subject);
+            return;
+        }
         try {
             var helper = new MimeMessageHelper(mailSender.createMimeMessage(), true, "UTF-8");
             helper.setTo(to);

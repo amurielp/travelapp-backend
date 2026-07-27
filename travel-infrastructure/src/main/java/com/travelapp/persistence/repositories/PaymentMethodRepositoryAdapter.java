@@ -48,15 +48,15 @@ public class PaymentMethodRepositoryAdapter implements PaymentMethodRepository {
         return grouped.entrySet().stream().map(e -> {
             var first = e.getValue().get(0);
             var lines = e.getValue().stream().map(r -> new PaymentMethodReportLine(
-                (String) r[4], (String) r[5],
-                r[6] != null ? new BigDecimal(r[6].toString()) : BigDecimal.ZERO,
-                (String) r[7], (String) r[8],
-                r[9] != null ? java.time.OffsetDateTime.parse(r[9].toString()) : null
+                (String) r[5], (String) r[6],
+                r[7] != null ? new BigDecimal(r[7].toString()) : BigDecimal.ZERO,
+                (String) r[8], (String) r[9],
+                r[10] != null ? java.time.OffsetDateTime.parse(r[10].toString()) : null
             )).toList();
             return new PaymentMethodReport(
                 e.getKey(), (String) first[1],
                 PaymentMethodType.valueOf((String) first[2]),
-                (String) first[10],
+                (String) first[8],
                 sumByStatus(lines, "CONFIRMED"),
                 sumByStatus(lines, "RESERVED"),
                 sumByStatus(lines, "PENDING"),

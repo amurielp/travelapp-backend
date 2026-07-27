@@ -14,6 +14,8 @@ public abstract class UserMapper {
 
     @Mapping(target = "plan",        expression = "java(user.getPlan().name())")
     @Mapping(target = "preferences", expression = "java(toJson(user.getPreferences()))")
+    @Mapping(target = "createdAt",   ignore = true)
+    @Mapping(target = "updatedAt",   ignore = true)
     public abstract UserEntity toEntity(User user);
 
     @Mapping(target = "plan",        expression = "java(com.travelapp.users.domain.UserPlan.valueOf(entity.getPlan()))")

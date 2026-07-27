@@ -25,6 +25,16 @@ public class EventEntity {
     private Double longitude;
     @Column(updatable = false)                          private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
+
+    @OneToOne(mappedBy = "event", fetch = FetchType.EAGER, optional = true)
+    private FlightEntity        flight;
+    @OneToOne(mappedBy = "event", fetch = FetchType.EAGER, optional = true)
+    private AccommodationEntity accommodation;
+    @OneToOne(mappedBy = "event", fetch = FetchType.EAGER, optional = true)
+    private ActivityEntity      activity;
+    @OneToOne(mappedBy = "event", fetch = FetchType.EAGER, optional = true)
+    private TransportEntity     transport;
+
     @PrePersist void onCreate() { createdAt = updatedAt = OffsetDateTime.now(); }
     @PreUpdate  void onUpdate() { updatedAt = OffsetDateTime.now(); }
 }

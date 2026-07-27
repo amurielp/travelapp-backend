@@ -1,7 +1,9 @@
 package com.travelapp.web.dto.request;
 
+import jakarta.validation.constraints.NotBlank;
+
 public record CreatePaymentMethodRequest(
-    String name,
-    String type,
+    @NotBlank String name,
+    @NotBlank String type,
     String notes
 ) {}

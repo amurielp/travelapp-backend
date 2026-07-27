@@ -1,4 +1,5 @@
 package com.travelapp.events.domain;
+
 import com.travelapp.shared.domain.PurchaseStatus;
 import lombok.*;
 import java.math.BigDecimal;
@@ -9,8 +10,6 @@ public class ActivityDetail {
     private String         venueName;
     private String         address;
     private String         city;
-    private Double         latitude;
-    private Double         longitude;
     private String         category;
     private String         bookingRef;
     private String         ticketUrl;

@@ -1,7 +1,6 @@
 package com.travelapp.adapters.export;
 
 import com.travelapp.export.ports.*;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -9,20 +8,15 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Delega la generación del PDF al AI service (Python).
- * WeasyPrint está disponible en Python y genera PDFs de alta calidad
- * a partir de HTML/CSS.
- *
- * Endpoint en ai-service: POST /export/pdf
- */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class WeasyPrintExporter implements ItineraryExporter {
 
-    @Qualifier("aiServiceWebClient")
     private final WebClient aiClient;
+
+    public WeasyPrintExporter(@Qualifier("aiServiceWebClient") WebClient aiClient) {
+        this.aiClient = aiClient;
+    }
 
     @Override
     public CompletableFuture<String> exportToPdf(

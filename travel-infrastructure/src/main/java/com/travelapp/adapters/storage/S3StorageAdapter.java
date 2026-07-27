@@ -18,7 +18,7 @@ public class S3StorageAdapter {
 
     private final S3Client s3;
 
-    @Value("${storage.s3.bucket}")
+    @Value("${storage.s3.bucket:travelapp-local}")
     private String bucket;
 
     @Value("${storage.s3.base-url:}")

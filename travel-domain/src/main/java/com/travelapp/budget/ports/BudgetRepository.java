@@ -1,5 +1,7 @@
 package com.travelapp.budget.ports;
+
 import com.travelapp.budget.domain.*;
+import java.time.OffsetDateTime;
 import java.util.*;
 
 public interface BudgetRepository {
@@ -9,4 +11,7 @@ public interface BudgetRepository {
     Optional<BudgetItem> findItemById(UUID id);
     void deleteItem(UUID id);
     List<CategorySummary> getSummaryByTripId(UUID tripId);
+    List<BudgetItem> findItemsByTripIdOrderByScheduledPayAt(UUID tripId);
+    List<BudgetItem> findItemsDueForReminder(OffsetDateTime from, OffsetDateTime to);
+    void markReminderSent(UUID itemId, OffsetDateTime sentAt);
 }

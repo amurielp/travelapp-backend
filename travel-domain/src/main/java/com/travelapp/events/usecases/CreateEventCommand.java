@@ -6,7 +6,7 @@ import java.util.UUID;
 
 public record CreateEventCommand(
     UUID            tripId,
-    UUID            documentId,   // null si es manual
+    UUID            documentId,
     EventType       type,
     String          title,
     String          notes,
@@ -22,5 +22,6 @@ public record CreateEventCommand(
     FlightDetail        flight,
     AccommodationDetail accommodation,
     ActivityDetail      activity,
-    TransportDetail     transport
+    TransportDetail     transport,
+    OffsetDateTime  scheduledPayAt
 ) {}

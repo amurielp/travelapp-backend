@@ -24,6 +24,10 @@ public class AddBudgetItemUseCase {
             .amountEstimated(cmd.amountEstimated())
             .currency(cmd.currency() != null ? cmd.currency() : budget.getCurrency())
             .isPaid(false)
+            .notes(cmd.notes())
+            .paymentMethodId(cmd.paymentMethodId())
+            .scheduledPayAt(cmd.scheduledPayAt())
+            .reminderHoursBefore(cmd.reminderHoursBefore())
             .build();
         return budgets.saveItem(item);
     }
