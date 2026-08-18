@@ -14,6 +14,8 @@ import java.util.UUID;
     @JsonSubTypes.Type(value = TransportEventResponse.class,     name = "TRANSPORT"),
     @JsonSubTypes.Type(value = CustomEventResponse.class,        name = "CUSTOM"),
     @JsonSubTypes.Type(value = DestinationEventResponse.class,   name = "DESTINATION"),
+    @JsonSubTypes.Type(value = EsimEventResponse.class,          name = "ESIM"),
+    @JsonSubTypes.Type(value = InsuranceEventResponse.class,     name = "INSURANCE"),
 })
 public abstract class EventResponse {
     protected UUID           id;

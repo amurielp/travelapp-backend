@@ -67,7 +67,7 @@ class TravelEventTest {
             "New Title", "Some notes", null,
             dt(9), dt(11),
             null, null, null, null,
-            null, null, null, null
+            null, null, null, null, null, null
         );
         e.update(cmd);
         assertThat(e.getTitle()).isEqualTo("New Title");
@@ -84,7 +84,7 @@ class TravelEventTest {
             e.getId(), e.getTripId(),
             null, null, null, null, null,
             null, null, null, null,
-            null, null, null, null
+            null, null, null, null, null, null
         );
         e.update(cmd);
         assertThat(e.getTitle()).isEqualTo(originalTitle);

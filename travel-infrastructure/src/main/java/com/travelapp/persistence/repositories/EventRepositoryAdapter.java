@@ -15,13 +15,15 @@ import java.util.*;
 @RequiredArgsConstructor
 public class EventRepositoryAdapter implements EventRepository {
 
-    private final EventJpaRepository        eventJpa;
-    private final FlightJpaRepository       flightJpa;
+    private final EventJpaRepository         eventJpa;
+    private final FlightJpaRepository        flightJpa;
     private final AccommodationJpaRepository accommodationJpa;
-    private final ActivityJpaRepository     activityJpa;
-    private final TransportJpaRepository    transportJpa;
-    private final EventMapper               mapper;
-    private final DetailEntityMapper        detailMapper;
+    private final ActivityJpaRepository      activityJpa;
+    private final TransportJpaRepository     transportJpa;
+    private final EsimJpaRepository          esimJpa;
+    private final InsuranceJpaRepository     insuranceJpa;
+    private final EventMapper                mapper;
+    private final DetailEntityMapper         detailMapper;
 
     @Override
     @Transactional
@@ -69,6 +71,8 @@ public class EventRepositoryAdapter implements EventRepository {
         syncAccommodation(saved, event);
         syncActivity(saved, event);
         syncTransport(saved, event);
+        syncEsim(saved, event);
+        syncInsurance(saved, event);
     }
 
     private void syncFlight(EventEntity saved, TravelEvent event) {
@@ -120,6 +124,32 @@ public class EventRepositoryAdapter implements EventRepository {
         } else {
             transportJpa.findByEventId(saved.getId()).ifPresent(transportJpa::delete);
             saved.setTransport(null);
+        }
+    }
+
+    private void syncEsim(EventEntity saved, TravelEvent event) {
+        if (event.getEsim() != null) {
+            EsimEntity ee = esimJpa.findByEventId(saved.getId())
+                .orElse(new EsimEntity());
+            detailMapper.updateEsim(event.getEsim(), ee);
+            ee.setEvent(saved);
+            saved.setEsim(esimJpa.save(ee));
+        } else {
+            esimJpa.findByEventId(saved.getId()).ifPresent(esimJpa::delete);
+            saved.setEsim(null);
+        }
+    }
+
+    private void syncInsurance(EventEntity saved, TravelEvent event) {
+        if (event.getInsurance() != null) {
+            InsuranceEntity ie = insuranceJpa.findByEventId(saved.getId())
+                .orElse(new InsuranceEntity());
+            detailMapper.updateInsurance(event.getInsurance(), ie);
+            ie.setEvent(saved);
+            saved.setInsurance(insuranceJpa.save(ie));
+        } else {
+            insuranceJpa.findByEventId(saved.getId()).ifPresent(insuranceJpa::delete);
+            saved.setInsurance(null);
         }
     }
 }

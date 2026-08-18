@@ -40,7 +40,7 @@ class UpdateEventUseCaseTest {
         when(eventRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         var cmd = new UpdateEventCommand(eventId, tripId, "Prado Museum",
-            null, null, null, null, null, null, null, null, null, null, null, null);
+            null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         var result = useCase.execute(cmd);
 
@@ -53,7 +53,7 @@ class UpdateEventUseCaseTest {
         when(eventRepository.findById(eventId)).thenReturn(Optional.empty());
 
         var cmd = new UpdateEventCommand(eventId, tripId, "X",
-            null, null, null, null, null, null, null, null, null, null, null, null);
+            null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         assertThatThrownBy(() -> useCase.execute(cmd))
             .isInstanceOf(EventNotFoundException.class);
@@ -67,7 +67,7 @@ class UpdateEventUseCaseTest {
 
         var wrongTripId = UUID.randomUUID();
         var cmd = new UpdateEventCommand(eventId, wrongTripId, null,
-            null, null, null, null, null, null, null, null, null, null, null, null);
+            null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         assertThatThrownBy(() -> useCase.execute(cmd))
             .isInstanceOf(EventNotFoundException.class);

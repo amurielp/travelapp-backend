@@ -8,5 +8,7 @@ public enum NotificationType {
     GAP_DETECTED,
     BUDGET_ALERT,
     FLIGHT_STATUS_CHANGE,
-    EXPORT_READY
+    EXPORT_READY,
+    ESIM_EXPIRY,
+    INSURANCE_EXPIRY
 }

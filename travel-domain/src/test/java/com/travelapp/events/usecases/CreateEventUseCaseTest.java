@@ -32,7 +32,7 @@ class CreateEventUseCaseTest {
             tripId, null, type, "Event", null, null,
             dt(startHour), endHour >= 0 ? dt(endHour) : null,
             false, tz, EventSource.MANUAL,
-            null, null, null, null, null, null, null
+            null, null, null, null, null, null, null, null
         );
     }
 

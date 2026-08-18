@@ -30,6 +30,8 @@ public class TravelEvent extends AggregateRoot<UUID> {
     private AccommodationDetail accommodation;
     private ActivityDetail      activity;
     private TransportDetail     transport;
+    private EsimDetail          esim;
+    private InsuranceDetail     insurance;
 
     public void confirm()  { this.status = EventStatus.CONFIRMED; }
     public void cancel()   { this.status = EventStatus.CANCELLED; }
@@ -48,6 +50,8 @@ public class TravelEvent extends AggregateRoot<UUID> {
         if (cmd.accommodation() != null) this.accommodation = cmd.accommodation();
         if (cmd.activity()      != null) this.activity      = cmd.activity();
         if (cmd.transport()     != null) this.transport     = cmd.transport();
+        if (cmd.esim()          != null) this.esim          = cmd.esim();
+        if (cmd.insurance()     != null) this.insurance     = cmd.insurance();
     }
 
     public boolean overlapsWith(TravelEvent other) {

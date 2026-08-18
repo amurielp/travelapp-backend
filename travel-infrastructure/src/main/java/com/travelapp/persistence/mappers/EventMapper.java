@@ -15,6 +15,8 @@ public interface EventMapper {
     @Mapping(target = "accommodation", ignore = true)
     @Mapping(target = "activity",      ignore = true)
     @Mapping(target = "transport",     ignore = true)
+    @Mapping(target = "esim",          ignore = true)
+    @Mapping(target = "insurance",     ignore = true)
     @Mapping(target = "createdAt",     ignore = true)
     @Mapping(target = "updatedAt",     ignore = true)
     EventEntity toEntity(TravelEvent event);

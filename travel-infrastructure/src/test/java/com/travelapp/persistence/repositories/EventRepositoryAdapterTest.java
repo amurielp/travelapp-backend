@@ -2,6 +2,7 @@ package com.travelapp.persistence.repositories;
 
 import com.travelapp.events.domain.*;
 import com.travelapp.persistence.entities.EventEntity;
+import com.travelapp.persistence.mappers.DetailEntityMapper;
 import com.travelapp.persistence.mappers.EventMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,8 +18,16 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class EventRepositoryAdapterTest {
 
-    @Mock EventJpaRepository jpa;
-    @Mock EventMapper mapper;
+    @Mock EventJpaRepository         eventJpa;
+    @Mock FlightJpaRepository        flightJpa;
+    @Mock AccommodationJpaRepository accommodationJpa;
+    @Mock ActivityJpaRepository      activityJpa;
+    @Mock TransportJpaRepository     transportJpa;
+    @Mock EsimJpaRepository          esimJpa;
+    @Mock InsuranceJpaRepository     insuranceJpa;
+    @Mock EventMapper                mapper;
+    @Mock DetailEntityMapper         detailMapper;
+
     @InjectMocks EventRepositoryAdapter adapter;
 
     private final UUID id = UUID.randomUUID();
@@ -47,8 +56,14 @@ class EventRepositoryAdapterTest {
         var d = domain();
         var e = entity();
         when(mapper.toEntity(d)).thenReturn(e);
-        when(jpa.save(e)).thenReturn(e);
+        when(eventJpa.save(e)).thenReturn(e);
         when(mapper.toDomain(e)).thenReturn(d);
+        when(flightJpa.findByEventId(any())).thenReturn(Optional.empty());
+        when(accommodationJpa.findByEventId(any())).thenReturn(Optional.empty());
+        when(activityJpa.findByEventId(any())).thenReturn(Optional.empty());
+        when(transportJpa.findByEventId(any())).thenReturn(Optional.empty());
+        when(esimJpa.findByEventId(any())).thenReturn(Optional.empty());
+        when(insuranceJpa.findByEventId(any())).thenReturn(Optional.empty());
 
         var result = adapter.save(d);
         assertThat(result).isEqualTo(d);
@@ -58,7 +73,7 @@ class EventRepositoryAdapterTest {
     void findById_found_returnsDomain() {
         var e = entity();
         var d = domain();
-        when(jpa.findById(id)).thenReturn(Optional.of(e));
+        when(eventJpa.findById(id)).thenReturn(Optional.of(e));
         when(mapper.toDomain(e)).thenReturn(d);
 
         assertThat(adapter.findById(id)).contains(d);
@@ -66,7 +81,7 @@ class EventRepositoryAdapterTest {
 
     @Test
     void findById_notFound_returnsEmpty() {
-        when(jpa.findById(id)).thenReturn(Optional.empty());
+        when(eventJpa.findById(id)).thenReturn(Optional.empty());
         assertThat(adapter.findById(id)).isEmpty();
     }
 
@@ -74,7 +89,7 @@ class EventRepositoryAdapterTest {
     void findByTripId_returnsMappedList() {
         var e = entity();
         var d = domain();
-        when(jpa.findByTripIdOrderByStartDatetimeAsc(tripId)).thenReturn(List.of(e));
+        when(eventJpa.findByTripIdOrderByStartDatetimeAsc(tripId)).thenReturn(List.of(e));
         when(mapper.toDomain(e)).thenReturn(d);
 
         assertThat(adapter.findByTripId(tripId)).containsExactly(d);
@@ -85,17 +100,17 @@ class EventRepositoryAdapterTest {
         var date = LocalDate.of(2025, 6, 15);
         var e = entity();
         var d = domain();
-        when(jpa.findByTripIdAndDateRange(eq(tripId), any(), any())).thenReturn(List.of(e));
+        when(eventJpa.findByTripIdAndDateRange(eq(tripId), any(), any())).thenReturn(List.of(e));
         when(mapper.toDomain(e)).thenReturn(d);
 
         var result = adapter.findByTripIdAndDateRange(tripId, date, date);
         assertThat(result).containsExactly(d);
-        verify(jpa).findByTripIdAndDateRange(eq(tripId), any(OffsetDateTime.class), any(OffsetDateTime.class));
+        verify(eventJpa).findByTripIdAndDateRange(eq(tripId), any(OffsetDateTime.class), any(OffsetDateTime.class));
     }
 
     @Test
     void deleteById_callsJpa() {
         adapter.deleteById(id);
-        verify(jpa).deleteById(id);
+        verify(eventJpa).deleteById(id);
     }
 }

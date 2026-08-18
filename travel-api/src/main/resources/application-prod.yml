@@ -6,6 +6,12 @@ ai:
     enabled: true
     ttl-seconds: 86400
 
+travelapp:
+  features:
+    flight-lookup:
+      enabled: true
+      api-key: "${AERODATABOX_API_KEY}"
+
 logging:
   level:
     com.travelapp: WARN

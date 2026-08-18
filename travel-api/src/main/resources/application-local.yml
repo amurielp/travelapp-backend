@@ -36,6 +36,11 @@ logging:
     io.opentelemetry: OFF
     io.micrometer.tracing: OFF
 
+travelapp:
+  features:
+    flight-lookup:
+      enabled: false
+
 services:
   ai-service:
     url: http://localhost:8000

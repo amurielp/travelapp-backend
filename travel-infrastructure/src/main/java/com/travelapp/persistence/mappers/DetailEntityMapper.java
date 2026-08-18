@@ -4,6 +4,8 @@ import com.travelapp.events.domain.*;
 import com.travelapp.persistence.entities.*;
 import org.mapstruct.*;
 
+// NOTE: EsimEntity and InsuranceEntity use @MapsId so 'eventId' and 'event' fields are ignored in mappings.
+
 @Mapper(componentModel = "spring", unmappedSourcePolicy = ReportingPolicy.IGNORE)
 public interface DetailEntityMapper {
 
@@ -61,4 +63,30 @@ public interface DetailEntityMapper {
     @Mapping(target = "event",     ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     void updateTransport(TransportDetail d, @MappingTarget TransportEntity e);
+
+    // ── eSIM ──────────────────────────────────────────────────
+
+    EsimDetail toDomain(EsimEntity e);
+
+    @Mapping(target = "eventId", ignore = true)
+    @Mapping(target = "event",   ignore = true)
+    EsimEntity toEntity(EsimDetail d);
+
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mapping(target = "eventId", ignore = true)
+    @Mapping(target = "event",   ignore = true)
+    void updateEsim(EsimDetail d, @MappingTarget EsimEntity e);
+
+    // ── Insurance ─────────────────────────────────────────────
+
+    InsuranceDetail toDomain(InsuranceEntity e);
+
+    @Mapping(target = "eventId", ignore = true)
+    @Mapping(target = "event",   ignore = true)
+    InsuranceEntity toEntity(InsuranceDetail d);
+
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mapping(target = "eventId", ignore = true)
+    @Mapping(target = "event",   ignore = true)
+    void updateInsurance(InsuranceDetail d, @MappingTarget InsuranceEntity e);
 }

@@ -19,5 +19,7 @@ public record UpdateEventCommand(
     FlightDetail        flight,
     AccommodationDetail accommodation,
     ActivityDetail      activity,
-    TransportDetail     transport
+    TransportDetail     transport,
+    EsimDetail          esim,
+    InsuranceDetail     insurance
 ) {}

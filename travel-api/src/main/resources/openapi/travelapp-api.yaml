@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: TravelApp API
-  version: 1.0.0
+  version: 1.1.0
   description: |
     API REST de TravelApp. Fuente de verdad — los controllers y DTOs
     de Spring Boot se generan automáticamente desde este fichero
@@ -19,9 +19,6 @@ servers:
 security:
   - bearerAuth: []
 
-# ─────────────────────────────────────────────────────────────
-# TAGS
-# ─────────────────────────────────────────────────────────────
 tags:
   - name: Users
   - name: Trips
@@ -30,12 +27,13 @@ tags:
   - name: Documents
   - name: Wishlist
   - name: Suggestions
-  - name: Places
+  - name: Gaps
+  - name: Export
   - name: PaymentMethods
+  - name: Flights
+  - name: Travel Services
+    description: eSIM and travel insurance
 
-# ─────────────────────────────────────────────────────────────
-# PATHS
-# ─────────────────────────────────────────────────────────────
 paths:
 
   # ── USERS ─────────────────────────────────────────────────
@@ -62,7 +60,7 @@ paths:
         "400": { $ref: '#/components/responses/BadRequest' }
 
   /v1/users/me/preferences:
-    patch:
+    put:
       tags: [Users]
       operationId: updatePreferences
       summary: Actualizar preferencias del usuario
@@ -70,7 +68,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/UserPreferences' }
+            schema: { $ref: '#/components/schemas/UpdateUserPreferencesRequest' }
       responses:
         "200": { $ref: '#/components/responses/UserResponse' }
 
@@ -79,15 +77,13 @@ paths:
     get:
       tags: [Trips]
       operationId: listTrips
-      summary: Listar viajes propios y compartidos
+      summary: Listar viajes del usuario
       parameters:
         - { $ref: '#/components/parameters/Page' }
         - { $ref: '#/components/parameters/Size' }
         - name: status
           in: query
-          schema:
-            type: string
-            enum: [PLANNING, ACTIVE, COMPLETED, ARCHIVED]
+          schema: { type: string, enum: [PLANNING, ACTIVE, COMPLETED, ARCHIVED] }
       responses:
         "200":
           description: OK
@@ -143,7 +139,7 @@ paths:
     post:
       tags: [Trips]
       operationId: publishTrip
-      summary: Publicar itinerario (URL pública)
+      summary: Publicar itinerario (genera URL pública)
       responses:
         "200": { $ref: '#/components/responses/TripResponse' }
 
@@ -169,13 +165,11 @@ paths:
     get:
       tags: [Events]
       operationId: listEvents
-      summary: Eventos del viaje (calendario completo)
+      summary: Eventos del viaje
       parameters:
         - name: type
           in: query
-          schema:
-            type: string
-            enum: [FLIGHT, ACCOMMODATION, ACTIVITY, TRANSPORT, CUSTOM, DESTINATION]
+          schema: { type: string, enum: [FLIGHT, ACCOMMODATION, ACTIVITY, TRANSPORT, CUSTOM, DESTINATION, ESIM, INSURANCE] }
         - name: from
           in: query
           schema: { type: string, format: date }
@@ -184,9 +178,7 @@ paths:
           schema: { type: string, format: date }
         - name: status
           in: query
-          schema:
-            type: string
-            enum: [CONFIRMED, TENTATIVE, CANCELLED]
+          schema: { type: string, enum: [CONFIRMED, TENTATIVE, CANCELLED] }
       responses:
         "200":
           description: OK
@@ -243,27 +235,25 @@ paths:
       responses:
         "204": { description: Eliminado }
 
-  /v1/trips/{tripId}/events/day/{date}:
+  /v1/trips/{tripId}/events/by-day:
     parameters:
       - { $ref: '#/components/parameters/TripId' }
-      - name: date
-        in: path
-        required: true
-        schema: { type: string, format: date }
     get:
       tags: [Events]
       operationId: getEventsByDay
-      summary: Eventos de un día concreto
+      summary: Eventos agrupados por día — mapa fecha→lista
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: '#/components/schemas/EventResponse' }
+                type: object
+                additionalProperties:
+                  type: array
+                  items: { $ref: '#/components/schemas/EventResponse' }
 
-  /v1/trips/{tripId}/days:
+  /v1/trips/{tripId}/events/days:
     parameters:
       - { $ref: '#/components/parameters/TripId' }
     get:
@@ -325,7 +315,6 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/BudgetItemResponse' }
-        "404": { $ref: '#/components/responses/NotFound' }
 
   /v1/trips/{tripId}/budget/items:
     parameters:
@@ -383,6 +372,11 @@ paths:
       tags: [Documents]
       operationId: listDocuments
       summary: Documentos del viaje
+      parameters:
+        - name: type
+          in: query
+          schema: { type: string }
+          description: Filtrar por tipo de documento
       responses:
         "200":
           description: OK
@@ -394,7 +388,26 @@ paths:
     post:
       tags: [Documents]
       operationId: uploadDocument
-      summary: Subir PDF
+      summary: Subir documento
+      parameters:
+        - name: documentTypeId
+          in: query
+          required: true
+          schema: { type: string }
+          description: "Tipo de documento (ej: flight_ticket, hotel_booking, passport)"
+        - name: displayName
+          in: query
+          schema: { type: string }
+          description: Nombre descriptivo del documento
+        - name: validFrom
+          in: query
+          schema: { type: string, format: date }
+        - name: validUntil
+          in: query
+          schema: { type: string, format: date }
+        - name: notes
+          in: query
+          schema: { type: string }
       requestBody:
         required: true
         content:
@@ -427,6 +440,12 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/DocumentResponse' }
+    delete:
+      tags: [Documents]
+      operationId: deleteDocument
+      summary: Eliminar documento
+      responses:
+        "204": { description: Eliminado }
 
   /v1/trips/{tripId}/documents/{documentId}/accept:
     parameters:
@@ -481,6 +500,20 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/WishlistItemResponse' }
 
+  /v1/trips/{tripId}/wishlist/{itemId}:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+      - name: itemId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [Wishlist]
+      operationId: deleteWishlistItem
+      summary: Eliminar ítem de la wishlist
+      responses:
+        "204": { description: Eliminado }
+
   /v1/trips/{tripId}/wishlist/{itemId}/schedule:
     parameters:
       - { $ref: '#/components/parameters/TripId' }
@@ -512,7 +545,7 @@ paths:
     get:
       tags: [Suggestions]
       operationId: getSuggestions
-      summary: Sugerencias para un día (IA o Places según feature flag)
+      summary: Sugerencias IA para un día del viaje
       parameters:
         - name: date
           in: query
@@ -534,7 +567,7 @@ paths:
     post:
       tags: [Suggestions]
       operationId: acceptSuggestion
-      summary: Aceptar sugerencia → crea evento
+      summary: Aceptar sugerencia — crea evento en el calendario
       responses:
         "201": { $ref: '#/components/responses/EventResponse' }
 
@@ -552,16 +585,129 @@ paths:
             schema:
               type: object
               properties:
-                reason: { type: string }
+                reason: { type: string, maxLength: 500 }
       responses:
         "204": { description: Descartada }
+
+  # ── GAPS ───────────────────────────────────────────────────
+  /v1/trips/{tripId}/gaps:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+    get:
+      tags: [Gaps]
+      operationId: listGaps
+      summary: Gaps e inconsistencias detectados en el itinerario
+      parameters:
+        - name: onlyOpen
+          in: query
+          schema: { type: boolean, default: true }
+          description: Si true, devuelve solo gaps con status OPEN
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/GapResponse' }
+
+  /v1/trips/{tripId}/gaps/recalculate:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+    post:
+      tags: [Gaps]
+      operationId: recalculateGaps
+      summary: Forzar recálculo de gaps del viaje
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/GapResponse' }
+
+  /v1/trips/{tripId}/gaps/{gapId}/snooze:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+      - { $ref: '#/components/parameters/GapId' }
+    post:
+      tags: [Gaps]
+      operationId: snoozeGap
+      summary: Posponer un gap hasta una fecha
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [until]
+              properties:
+                until:
+                  type: string
+                  format: date-time
+                  description: Fecha hasta la que se pospone el gap
+                  example: "2025-08-01T00:00:00Z"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GapResponse' }
+
+  /v1/trips/{tripId}/gaps/{gapId}/ignore:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+      - { $ref: '#/components/parameters/GapId' }
+    post:
+      tags: [Gaps]
+      operationId: ignoreGap
+      summary: Ignorar un gap con motivo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  maxLength: 500
+                  description: Motivo por el que se ignora el gap
+                  example: "Ya tengo alojamiento reservado fuera de la app"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GapResponse' }
+
+  # ── EXPORT ─────────────────────────────────────────────────
+  /v1/trips/{tripId}/export:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+    post:
+      tags: [Export]
+      operationId: requestExport
+      summary: Solicitar exportación del itinerario en PDF (asíncrono)
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExportOptionsRequest' }
+      responses:
+        "200":
+          description: Exportación iniciada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ExportResponse' }
 
   # ── PAYMENT METHODS ───────────────────────────────────────
   /v1/payment-methods:
     get:
       tags: [PaymentMethods]
       operationId: listPaymentMethods
-      summary: Medios de pago activos del usuario
+      summary: Medios de pago del usuario
       responses:
         "200":
           description: OK
@@ -586,6 +732,37 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/PaymentMethodResponse' }
 
+  # ── FLIGHTS ────────────────────────────────────────────────
+  /v1/flights/lookup:
+    get:
+      tags: [Flights]
+      operationId: lookupFlight
+      summary: Lookup flight details by IATA flight number and date
+      description: Proxy to AeroDataBox. Returns scheduled departure/arrival info to auto-fill the event form. Disabled in non-production environments.
+      parameters:
+        - name: flightNumber
+          in: query
+          required: true
+          schema: { type: string, minLength: 3, maxLength: 10, example: "IB1234" }
+          description: IATA flight number (e.g. IB1234)
+        - name: date
+          in: query
+          required: true
+          schema: { type: string, format: date, example: "2025-07-15" }
+          description: Flight date in ISO 8601 format (YYYY-MM-DD)
+      responses:
+        "200":
+          description: Flight details found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FlightLookupResponse' }
+        "404":
+          description: Flight not found
+        "503":
+          description: Flight lookup is disabled in this environment
+      security:
+        - bearerAuth: []
+
   /v1/payment-methods/{methodId}:
     parameters:
       - name: methodId
@@ -595,7 +772,7 @@ paths:
     patch:
       tags: [PaymentMethods]
       operationId: updatePaymentMethod
-      summary: Actualizar nombre o notas
+      summary: Actualizar medio de pago
       requestBody:
         required: true
         content:
@@ -610,20 +787,21 @@ paths:
     delete:
       tags: [PaymentMethods]
       operationId: deletePaymentMethod
-      summary: Eliminar (o desactivar) medio de pago
+      summary: Eliminar medio de pago
       responses:
         "204": { description: Eliminado }
 
-  /v1/payment-methods/report:
+  /v1/payment-methods/report/{tripId}:
+    parameters:
+      - name: tripId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+        description: Viaje para el que se genera el reporte
     get:
       tags: [PaymentMethods]
       operationId: getPaymentMethodReport
       summary: Reporte de gastos agrupados por medio de pago
-      parameters:
-        - name: tripId
-          in: query
-          schema: { type: string, format: uuid }
-          description: Filtrar por viaje
       responses:
         "200":
           description: OK
@@ -644,7 +822,6 @@ components:
       scheme: bearer
       bearerFormat: JWT
 
-  # ── PARAMETERS ─────────────────────────────────────────────
   parameters:
     TripId:
       name: tripId
@@ -666,6 +843,11 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    GapId:
+      name: gapId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     Page:
       name: page
       in: query
@@ -675,7 +857,6 @@ components:
       in: query
       schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
 
-  # ── RESPONSES ──────────────────────────────────────────────
   responses:
     UserResponse:
       description: OK
@@ -707,7 +888,6 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
 
-  # ── SCHEMAS ────────────────────────────────────────────────
   schemas:
 
     # ── Shared ───────────────────────────────────────────────
@@ -731,12 +911,12 @@ components:
     UserResponse:
       type: object
       properties:
-        id:          { type: string, format: uuid }
-        email:       { type: string }
-        name:        { type: string }
-        avatarUrl:   { type: string }
-        plan:        { type: string, enum: [free, premium] }
-        preferences: { $ref: '#/components/schemas/UserPreferences' }
+        id:             { type: string, format: uuid }
+        email:          { type: string }
+        name:           { type: string }
+        avatarUrl:      { type: string }
+        plan:           { type: string, enum: [free, premium] }
+        planExpiresAt:  { type: string, format: date-time }
 
     UpdateUserRequest:
       type: object
@@ -744,29 +924,15 @@ components:
         name:      { type: string, maxLength: 120 }
         avatarUrl: { type: string }
 
-    UserPreferences:
+    UpdateUserPreferencesRequest:
       type: object
       properties:
         interests:   { type: array, items: { type: string } }
-        foodProfile:
-          type: object
-          properties:
-            level:   { type: string, enum: [normal, foodie, gourmet] }
-            prefers: { type: array, items: { type: string } }
-            avoid:   { type: array, items: { type: string } }
-            diet:    { type: string }
-            allergies: { type: array, items: { type: string } }
-        travelStyle:
-          type: object
-          properties:
-            pace:                 { type: string, enum: [relaxed, moderate, intense] }
-            earlyRiser:           { type: boolean }
-            maxActivitiesPerDay:  { type: integer, minimum: 1, maximum: 10 }
-            avoidCrowds:          { type: boolean }
-            fitnessLevel:         { type: string, enum: [low, moderate, high] }
-        budgetLevel:  { type: string, enum: [budget, mid, mid-high, luxury] }
-        language:     { type: string }
-        currency:     { type: string }
+        foodProfile: { type: string, description: "Perfil gastronómico del usuario (ej: normal, foodie, gourmet)" }
+        travelStyle: { type: string, enum: [slow, moderate, intense] }
+        budgetLevel: { type: string, enum: [budget, mid, mid-high, luxury] }
+        language:    { type: string, minLength: 2, maxLength: 5 }
+        currency:    { type: string, minLength: 3, maxLength: 3 }
 
     # ── Trips ─────────────────────────────────────────────────
     TripResponse:
@@ -806,15 +972,15 @@ components:
     UpdateTripRequest:
       type: object
       properties:
-        title:        { type: string, maxLength: 120 }
-        description:  { type: string }
-        startDate:    { type: string, format: date }
-        endDate:      { type: string, format: date }
-        baseCurrency: { type: string }
-        status:       { type: string, enum: [PLANNING, ACTIVE, COMPLETED, ARCHIVED] }
+        title:         { type: string, maxLength: 120 }
+        description:   { type: string }
+        startDate:     { type: string, format: date }
+        endDate:       { type: string, format: date }
+        baseCurrency:  { type: string }
+        coverImageUrl: { type: string }
+        status:        { type: string, enum: [PLANNING, ACTIVE, COMPLETED, ARCHIVED] }
 
     # ── Events ────────────────────────────────────────────────
-
     EventResponse:
       oneOf:
         - $ref: '#/components/schemas/FlightEventResponse'
@@ -823,6 +989,8 @@ components:
         - $ref: '#/components/schemas/TransportEventResponse'
         - $ref: '#/components/schemas/CustomEventResponse'
         - $ref: '#/components/schemas/DestinationEventResponse'
+        - $ref: '#/components/schemas/EsimEventResponse'
+        - $ref: '#/components/schemas/InsuranceEventResponse'
       discriminator:
         propertyName: type
         mapping:
@@ -832,126 +1000,56 @@ components:
           TRANSPORT:     '#/components/schemas/TransportEventResponse'
           CUSTOM:        '#/components/schemas/CustomEventResponse'
           DESTINATION:   '#/components/schemas/DestinationEventResponse'
+          ESIM:          '#/components/schemas/EsimEventResponse'
+          INSURANCE:     '#/components/schemas/InsuranceEventResponse'
 
     EventResponseBase:
       type: object
       properties:
-        id:
-          type: string
-          format: uuid
-          description: Identificador único del evento.
-          example: "550e8400-e29b-41d4-a716-446655440000"
-        tripId:
-          type: string
-          format: uuid
-          description: Identificador del viaje al que pertenece el evento.
-          example: "550e8400-e29b-41d4-a716-446655440001"
-        documentId:
-          type: string
-          format: uuid
-          description: Documento del que se extrajo el evento (si procede de PDF).
-          example: "550e8400-e29b-41d4-a716-446655440002"
-        type:
-          type: string
-          enum: [FLIGHT, ACCOMMODATION, ACTIVITY, TRANSPORT, CUSTOM, DESTINATION]
-          description: Tipo de evento.
-          example: "FLIGHT"
-        title:
-          type: string
-          minLength: 1
-          maxLength: 200
-          description: Título del evento.
-          example: "Vuelo MAD-BCN"
-        notes:
-          type: string
-          maxLength: 2000
-          description: Notas adicionales del evento.
-          example: "Check-in online realizado"
-        color:
-          type: string
-          minLength: 7
-          maxLength: 7
-          description: Color HEX del evento en el calendario.
-          example: "#1A73E8"
-        startDatetime:
-          type: string
-          format: date-time
-          description: Inicio del evento (ISO 8601 con zona horaria).
-          example: "2025-07-10T08:00:00+02:00"
-        endDatetime:
-          type: string
-          format: date-time
-          description: Fin del evento.
-          example: "2025-07-10T10:00:00+02:00"
-        allDay:
-          type: boolean
-          description: Indica si el evento ocupa todo el día.
-          example: false
-        timezone:
-          type: string
-          minLength: 1
-          maxLength: 60
-          description: Zona horaria IANA del evento.
-          example: "Europe/Madrid"
-        status:
-          type: string
-          enum: [CONFIRMED, TENTATIVE, CANCELLED]
-          description: Estado de confirmación del evento.
-          example: "CONFIRMED"
-        source:
-          type: string
-          enum: [MANUAL, PDF_IMPORT, AI_SUGGESTION]
-          description: Origen del evento.
-          example: "MANUAL"
-        locationName:
-          type: string
-          maxLength: 200
-          description: Nombre del lugar del evento.
-          example: "Aeropuerto Adolfo Suárez Madrid–Barajas"
-        latitude:
-          type: number
-          minimum: -90
-          maximum: 90
-          description: Latitud de la ubicación del evento.
-          example: 40.4983
-        longitude:
-          type: number
-          minimum: -180
-          maximum: 180
-          description: Longitud de la ubicación del evento.
-          example: -3.5676
+        id:            { type: string, format: uuid }
+        tripId:        { type: string, format: uuid }
+        documentId:    { type: string, format: uuid }
+        type:          { type: string, enum: [FLIGHT, ACCOMMODATION, ACTIVITY, TRANSPORT, CUSTOM, DESTINATION, ESIM, INSURANCE] }
+        title:         { type: string, minLength: 1, maxLength: 200 }
+        notes:         { type: string, maxLength: 2000 }
+        color:         { type: string, minLength: 7, maxLength: 7 }
+        startDatetime: { type: string, format: date-time }
+        endDatetime:   { type: string, format: date-time }
+        allDay:        { type: boolean }
+        timezone:      { type: string, minLength: 1, maxLength: 60 }
+        status:        { type: string, enum: [CONFIRMED, TENTATIVE, CANCELLED] }
+        source:        { type: string, enum: [MANUAL, PDF_IMPORT, AI_SUGGESTION] }
+        locationName:  { type: string, maxLength: 200 }
+        latitude:      { type: number, minimum: -90, maximum: 90 }
+        longitude:     { type: number, minimum: -180, maximum: 180 }
 
     FlightEventResponse:
       allOf:
         - $ref: '#/components/schemas/EventResponseBase'
         - type: object
           properties:
-            flight:
-              $ref: '#/components/schemas/FlightDetail'
+            flight: { $ref: '#/components/schemas/FlightDetail' }
 
     AccommodationEventResponse:
       allOf:
         - $ref: '#/components/schemas/EventResponseBase'
         - type: object
           properties:
-            accommodation:
-              $ref: '#/components/schemas/AccommodationDetail'
+            accommodation: { $ref: '#/components/schemas/AccommodationDetail' }
 
     ActivityEventResponse:
       allOf:
         - $ref: '#/components/schemas/EventResponseBase'
         - type: object
           properties:
-            activity:
-              $ref: '#/components/schemas/ActivityDetail'
+            activity: { $ref: '#/components/schemas/ActivityDetail' }
 
     TransportEventResponse:
       allOf:
         - $ref: '#/components/schemas/EventResponseBase'
         - type: object
           properties:
-            transport:
-              $ref: '#/components/schemas/TransportDetail'
+            transport: { $ref: '#/components/schemas/TransportDetail' }
 
     CustomEventResponse:
       allOf:
@@ -969,6 +1067,8 @@ components:
         - $ref: '#/components/schemas/CreateTransportEventRequest'
         - $ref: '#/components/schemas/CreateCustomEventRequest'
         - $ref: '#/components/schemas/CreateDestinationEventRequest'
+        - $ref: '#/components/schemas/CreateEsimEventRequest'
+        - $ref: '#/components/schemas/CreateInsuranceEventRequest'
       discriminator:
         propertyName: type
         mapping:
@@ -978,78 +1078,25 @@ components:
           TRANSPORT:     '#/components/schemas/CreateTransportEventRequest'
           CUSTOM:        '#/components/schemas/CreateCustomEventRequest'
           DESTINATION:   '#/components/schemas/CreateDestinationEventRequest'
+          ESIM:          '#/components/schemas/CreateEsimEventRequest'
+          INSURANCE:     '#/components/schemas/CreateInsuranceEventRequest'
 
     EventBase:
       type: object
       required: [type, title, startDatetime]
       properties:
-        type:
-          type: string
-          enum: [FLIGHT, ACCOMMODATION, ACTIVITY, TRANSPORT, CUSTOM, DESTINATION]
-          description: Tipo de evento. Determina qué sub-schema de detalle se requiere.
-          example: FLIGHT
-        title:
-          type: string
-          minLength: 1
-          maxLength: 200
-          description: Título del evento.
-          example: "Vuelo MAD-BCN"
-        notes:
-          type: string
-          maxLength: 2000
-          description: Notas adicionales.
-          example: "Check-in online realizado"
-        color:
-          type: string
-          pattern: '^#[0-9A-Fa-f]{6}$'
-          minLength: 7
-          maxLength: 7
-          description: Color HEX para el calendario.
-          example: "#1A73E8"
-        startDatetime:
-          type: string
-          format: date-time
-          description: Fecha y hora de inicio (ISO 8601 con zona horaria).
-          example: "2025-07-10T08:00:00+02:00"
-        endDatetime:
-          type: string
-          format: date-time
-          description: Fecha y hora de fin.
-          example: "2025-07-10T10:00:00+02:00"
-        allDay:
-          type: boolean
-          default: false
-          description: Indica si el evento ocupa todo el día.
-          example: false
-        timezone:
-          type: string
-          minLength: 1
-          maxLength: 60
-          default: Europe/Madrid
-          description: Zona horaria IANA.
-          example: "Europe/Madrid"
-        locationName:
-          type: string
-          maxLength: 200
-          description: Nombre del lugar del evento.
-          example: "Aeropuerto Adolfo Suárez Madrid–Barajas"
-        latitude:
-          type: number
-          minimum: -90
-          maximum: 90
-          description: Latitud de la ubicación.
-          example: 40.4983
-        longitude:
-          type: number
-          minimum: -180
-          maximum: 180
-          description: Longitud de la ubicación.
-          example: -3.5676
-        scheduledPayAt:
-          type: string
-          format: date-time
-          description: Fecha prevista de pago. Se traslada automáticamente al BudgetItem creado con el evento.
-          example: "2025-06-15T10:00:00+02:00"
+        type:          { type: string, enum: [FLIGHT, ACCOMMODATION, ACTIVITY, TRANSPORT, CUSTOM, DESTINATION, ESIM, INSURANCE] }
+        title:         { type: string, minLength: 1, maxLength: 200 }
+        notes:         { type: string, maxLength: 2000 }
+        color:         { type: string, pattern: '^#[0-9A-Fa-f]{6}$', minLength: 7, maxLength: 7 }
+        startDatetime: { type: string, format: date-time }
+        endDatetime:   { type: string, format: date-time }
+        allDay:        { type: boolean, default: false }
+        timezone:      { type: string, minLength: 1, maxLength: 60, default: Europe/Madrid }
+        locationName:  { type: string, maxLength: 200 }
+        latitude:      { type: number, minimum: -90, maximum: 90 }
+        longitude:     { type: number, minimum: -180, maximum: 180 }
+        scheduledPayAt: { type: string, format: date-time }
 
     CreateFlightEventRequest:
       allOf:
@@ -1057,8 +1104,7 @@ components:
         - type: object
           required: [flight]
           properties:
-            flight:
-              $ref: '#/components/schemas/FlightDetail'
+            flight: { $ref: '#/components/schemas/FlightDetail' }
 
     CreateAccommodationEventRequest:
       allOf:
@@ -1066,8 +1112,7 @@ components:
         - type: object
           required: [accommodation]
           properties:
-            accommodation:
-              $ref: '#/components/schemas/AccommodationDetail'
+            accommodation: { $ref: '#/components/schemas/AccommodationDetail' }
 
     CreateActivityEventRequest:
       allOf:
@@ -1075,8 +1120,7 @@ components:
         - type: object
           required: [activity]
           properties:
-            activity:
-              $ref: '#/components/schemas/ActivityDetail'
+            activity: { $ref: '#/components/schemas/ActivityDetail' }
 
     CreateTransportEventRequest:
       allOf:
@@ -1084,8 +1128,7 @@ components:
         - type: object
           required: [transport]
           properties:
-            transport:
-              $ref: '#/components/schemas/TransportDetail'
+            transport: { $ref: '#/components/schemas/TransportDetail' }
 
     CreateCustomEventRequest:
       allOf:
@@ -1098,347 +1141,100 @@ components:
     UpdateEventRequest:
       type: object
       properties:
-        title:         { type: string, maxLength: 200, description: Nuevo título del evento., example: "Vuelo MAD-BCN actualizado" }
-        notes:         { type: string, maxLength: 2000, description: Notas actualizadas., example: "Embarque puerta B12" }
-        color:         { type: string, minLength: 7, maxLength: 7, description: Nuevo color HEX., example: "#E53935" }
-        startDatetime: { type: string, format: date-time, description: Nueva fecha de inicio., example: "2025-07-10T09:00:00+02:00" }
-        endDatetime:   { type: string, format: date-time, description: Nueva fecha de fin., example: "2025-07-10T11:00:00+02:00" }
-        status:
-          type: string
-          enum: [CONFIRMED, TENTATIVE, CANCELLED]
-          description: Nuevo estado de confirmación.
-          example: "CONFIRMED"
-        locationName:  { type: string, maxLength: 200, description: Nombre del lugar actualizado., example: "Terminal 4S" }
-        latitude:      { type: number, minimum: -90, maximum: 90, description: Latitud actualizada., example: 40.4983 }
-        longitude:     { type: number, minimum: -180, maximum: 180, description: Longitud actualizada., example: -3.5676 }
+        title:         { type: string, maxLength: 200 }
+        notes:         { type: string, maxLength: 2000 }
+        color:         { type: string, minLength: 7, maxLength: 7 }
+        startDatetime: { type: string, format: date-time }
+        endDatetime:   { type: string, format: date-time }
+        status:        { type: string, enum: [CONFIRMED, TENTATIVE, CANCELLED] }
+        locationName:  { type: string, maxLength: 200 }
+        latitude:      { type: number, minimum: -90, maximum: 90 }
+        longitude:     { type: number, minimum: -180, maximum: 180 }
         flight:        { $ref: '#/components/schemas/FlightDetail' }
         accommodation: { $ref: '#/components/schemas/AccommodationDetail' }
         activity:      { $ref: '#/components/schemas/ActivityDetail' }
         transport:     { $ref: '#/components/schemas/TransportDetail' }
+        esim:          { $ref: '#/components/schemas/EsimDetail' }
+        insurance:     { $ref: '#/components/schemas/InsuranceDetail' }
 
     FlightDetail:
       type: object
       properties:
-        airline:
-          type: string
-          minLength: 1
-          maxLength: 100
-          description: Nombre de la aerolínea.
-          example: "Iberia"
-        flightNumber:
-          type: string
-          minLength: 2
-          maxLength: 10
-          description: Número de vuelo.
-          example: "IB3721"
-        originCity:
-          type: string
-          minLength: 1
-          maxLength: 100
-          description: Ciudad de origen.
-          example: "Madrid"
-        originIata:
-          type: string
-          minLength: 3
-          maxLength: 3
-          description: Código IATA del aeropuerto de origen.
-          example: "MAD"
-        originTerminal:
-          type: string
-          maxLength: 10
-          description: Terminal de salida.
-          example: "T4"
-        destinationCity:
-          type: string
-          minLength: 1
-          maxLength: 100
-          description: Ciudad de destino.
-          example: "Barcelona"
-        destinationIata:
-          type: string
-          minLength: 3
-          maxLength: 3
-          description: Código IATA del aeropuerto de destino.
-          example: "BCN"
-        destinationTerminal:
-          type: string
-          maxLength: 10
-          description: Terminal de llegada.
-          example: "T1"
-        seat:
-          type: string
-          maxLength: 5
-          description: Número de asiento asignado.
-          example: "14A"
-        cabinClass:
-          type: string
-          enum: [economy, premium_economy, business, first]
-          description: Clase de cabina.
-          example: "economy"
-        bookingRef:
-          type: string
-          maxLength: 20
-          description: Localizador de la reserva.
-          example: "ABC123"
-        baggageAllowance:
-          type: string
-          maxLength: 50
-          description: Franquicia de equipaje incluida.
-          example: "23kg + 10kg cabina"
-        purchaseStatus:
-          type: string
-          enum: [DRAFT, PENDING, RESERVED, CONFIRMED, CANCELLED, REFUNDED]
-          description: Estado de compra del vuelo.
-          example: "RESERVED"
-        priceAmount:
-          type: number
-          minimum: 0
-          maximum: 99999.99
-          description: Precio del vuelo.
-          example: 89.99
-        priceCurrency:
-          type: string
-          minLength: 3
-          maxLength: 3
-          description: Moneda del precio (ISO 4217).
-          example: "EUR"
-        pricePerPerson:
-          type: boolean
-          description: Indica si el precio es por persona.
-          example: false
-        numPassengers:
-          type: integer
-          minimum: 1
-          maximum: 9
-          description: Número de pasajeros.
-          example: 2
-        cancellationDeadline:
-          type: string
-          format: date-time
-          description: Fecha límite de cancelación gratuita.
-          example: "2025-07-08T23:59:00+02:00"
-        purchasedAt:
-          type: string
-          format: date-time
-          description: Fecha de compra.
-          example: "2025-06-01T10:30:00+02:00"
+        airline:              { type: string, minLength: 1, maxLength: 100 }
+        flightNumber:         { type: string, minLength: 2, maxLength: 10 }
+        originCity:           { type: string, maxLength: 100 }
+        originIata:           { type: string, minLength: 3, maxLength: 3 }
+        originTerminal:       { type: string, maxLength: 10 }
+        destinationCity:      { type: string, maxLength: 100 }
+        destinationIata:      { type: string, minLength: 3, maxLength: 3 }
+        destinationTerminal:  { type: string, maxLength: 10 }
+        seat:                 { type: string, maxLength: 5 }
+        cabinClass:           { type: string, enum: [economy, premium_economy, business, first] }
+        bookingRef:           { type: string, maxLength: 20 }
+        baggageAllowance:     { type: string, maxLength: 50 }
+        purchaseStatus:       { type: string, enum: [DRAFT, PENDING, RESERVED, CONFIRMED, CANCELLED, REFUNDED] }
+        priceAmount:          { type: number, minimum: 0, maximum: 99999.99 }
+        priceCurrency:        { type: string, minLength: 3, maxLength: 3 }
+        pricePerPerson:       { type: boolean }
+        numPassengers:        { type: integer, minimum: 1, maximum: 9 }
+        cancellationDeadline: { type: string, format: date-time }
+        purchasedAt:          { type: string, format: date-time }
+        paymentMethodId:      { type: string, format: uuid }
 
     AccommodationDetail:
       type: object
       required: [name]
       properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 200
-          description: Nombre del alojamiento.
-          example: "Hotel Arts Barcelona"
-        accommodationType:
-          type: string
-          enum: [hotel, apartment, hostel, airbnb, other]
-          description: Tipo de alojamiento.
-          example: "hotel"
-        address:
-          type: string
-          maxLength: 300
-          description: Dirección del alojamiento.
-          example: "Carrer de la Marina, 19-21"
-        city:
-          type: string
-          maxLength: 100
-          description: Ciudad del alojamiento.
-          example: "Barcelona"
-        country:
-          type: string
-          maxLength: 100
-          description: País del alojamiento.
-          example: "España"
-        bookingRef:
-          type: string
-          maxLength: 50
-          description: Localizador de la reserva.
-          example: "BCN2025ARTS"
-        bookingPlatform:
-          type: string
-          maxLength: 100
-          description: Plataforma de reserva.
-          example: "Booking.com"
-        includesBreakfast:
-          type: boolean
-          description: Indica si el desayuno está incluido.
-          example: true
-        purchaseStatus:
-          type: string
-          enum: [DRAFT, PENDING, RESERVED, CONFIRMED, CANCELLED, REFUNDED]
-          description: Estado de compra del alojamiento.
-          example: "RESERVED"
-        pricePerNight:
-          type: number
-          minimum: 0
-          maximum: 99999.99
-          description: Precio por noche.
-          example: 150.00
-        totalPrice:
-          type: number
-          minimum: 0
-          maximum: 999999.99
-          description: Precio total (puede diferir del calculado si hay descuentos).
-          example: 580.00
-        priceCurrency:
-          type: string
-          minLength: 3
-          maxLength: 3
-          description: Moneda (ISO 4217).
-          example: "EUR"
-        freeCancellationUntil:
-          type: string
-          format: date-time
-          description: Fecha límite de cancelación gratuita.
-          example: "2025-07-07T23:59:00+02:00"
-        purchasedAt:
-          type: string
-          format: date-time
-          description: Fecha de compra/reserva.
-          example: "2025-06-01T11:00:00+02:00"
+        name:                  { type: string, minLength: 1, maxLength: 200 }
+        accommodationType:     { type: string, enum: [hotel, apartment, hostel, airbnb, other] }
+        address:               { type: string, maxLength: 300 }
+        city:                  { type: string, maxLength: 100 }
+        country:               { type: string, maxLength: 100 }
+        bookingRef:            { type: string, maxLength: 50 }
+        bookingPlatform:       { type: string, maxLength: 100 }
+        includesBreakfast:     { type: boolean }
+        purchaseStatus:        { type: string, enum: [DRAFT, PENDING, RESERVED, CONFIRMED, CANCELLED, REFUNDED] }
+        pricePerNight:         { type: number, minimum: 0, maximum: 99999.99 }
+        totalPrice:            { type: number, minimum: 0, maximum: 999999.99 }
+        priceCurrency:         { type: string, minLength: 3, maxLength: 3 }
+        freeCancellationUntil: { type: string, format: date-time }
+        purchasedAt:           { type: string, format: date-time }
+        paymentMethodId:       { type: string, format: uuid }
 
     ActivityDetail:
       type: object
       properties:
-        venueName:
-          type: string
-          maxLength: 200
-          description: Nombre del lugar o recinto de la actividad.
-          example: "Sagrada Família"
-        address:
-          type: string
-          maxLength: 300
-          description: Dirección de la actividad.
-          example: "Carrer de Mallorca, 401"
-        city:
-          type: string
-          maxLength: 100
-          description: Ciudad de la actividad.
-          example: "Barcelona"
-        category:
-          type: string
-          maxLength: 100
-          description: Categoría de la actividad.
-          example: "Monumento"
-        bookingRef:
-          type: string
-          maxLength: 50
-          description: Localizador de la reserva.
-          example: "SF2025ABC"
-        ticketUrl:
-          type: string
-          maxLength: 500
-          description: URL de la entrada o reserva.
-          example: "https://sagradafamilia.org/tickets/ABC123"
-        numPeople:
-          type: integer
-          minimum: 1
-          maximum: 99
-          description: Número de personas.
-          example: 2
-        externalPlaceId:
-          type: string
-          maxLength: 100
-          description: Identificador externo del lugar (Google Places, etc.).
-          example: "ChIJk_s2OA6ipBIRBqNs4flzrQM"
-        rating:
-          type: number
-          minimum: 0
-          maximum: 5
-          description: Valoración del lugar.
-          example: 4.8
-        websiteUrl:
-          type: string
-          maxLength: 500
-          description: Web del lugar.
-          example: "https://sagradafamilia.org"
-        purchaseStatus:
-          type: string
-          enum: [DRAFT, PENDING, RESERVED, CONFIRMED, CANCELLED, REFUNDED]
-          description: Estado de compra de la actividad.
-          example: "CONFIRMED"
-        priceAmount:
-          type: number
-          minimum: 0
-          maximum: 9999.99
-          description: Precio de la actividad.
-          example: 26.00
-        priceCurrency:
-          type: string
-          minLength: 3
-          maxLength: 3
-          description: Moneda (ISO 4217).
-          example: "EUR"
+        venueName:       { type: string, maxLength: 200 }
+        address:         { type: string, maxLength: 300 }
+        city:            { type: string, maxLength: 100 }
+        category:        { type: string, maxLength: 100 }
+        bookingRef:      { type: string, maxLength: 50 }
+        ticketUrl:       { type: string, maxLength: 500 }
+        numPeople:       { type: integer, minimum: 1, maximum: 99 }
+        externalPlaceId: { type: string, maxLength: 100 }
+        rating:          { type: number, minimum: 0, maximum: 5 }
+        websiteUrl:      { type: string, maxLength: 500 }
+        purchaseStatus:  { type: string, enum: [DRAFT, PENDING, RESERVED, CONFIRMED, CANCELLED, REFUNDED] }
+        priceAmount:     { type: number, minimum: 0, maximum: 9999.99 }
+        priceCurrency:   { type: string, minLength: 3, maxLength: 3 }
+        paymentMethodId: { type: string, format: uuid }
 
     TransportDetail:
       type: object
       properties:
-        transportType:
-          type: string
-          enum: [train, bus, car_rental, taxi, ferry, metro, other]
-          description: Tipo de transporte terrestre.
-          example: "train"
-        provider:
-          type: string
-          maxLength: 100
-          description: Proveedor o compañía de transporte.
-          example: "Renfe"
-        originName:
-          type: string
-          maxLength: 200
-          description: Nombre del punto de origen.
-          example: "Barcelona Sants"
-        originAddress:
-          type: string
-          maxLength: 300
-          description: Dirección del punto de origen.
-          example: "Pl. dels Països Catalans, s/n"
-        destinationName:
-          type: string
-          maxLength: 200
-          description: Nombre del destino.
-          example: "Girona"
-        destinationAddress:
-          type: string
-          maxLength: 300
-          description: Dirección del destino.
-          example: "Pl. Espanya, 1"
-        bookingRef:
-          type: string
-          maxLength: 50
-          description: Localizador de la reserva.
-          example: "RNF2025XYZ"
-        seatNumber:
-          type: string
-          maxLength: 10
-          description: Número de asiento.
-          example: "4B"
-        vehicleDetails:
-          type: string
-          maxLength: 200
-          description: Detalles del vehículo o servicio.
-          example: "AVE Clase Turista"
-        purchaseStatus:
-          type: string
-          enum: [DRAFT, PENDING, RESERVED, CONFIRMED, CANCELLED, REFUNDED]
-          description: Estado de compra del transporte.
-          example: "CONFIRMED"
-        priceAmount:
-          type: number
-          minimum: 0
-          maximum: 9999.99
-          description: Precio del trayecto.
-          example: 35.50
-        priceCurrency:
-          type: string
-          minLength: 3
-          maxLength: 3
-          description: Moneda (ISO 4217).
-          example: "EUR"
+        transportType:       { type: string, enum: [train, bus, car_rental, taxi, ferry, metro, other] }
+        provider:            { type: string, maxLength: 100 }
+        originName:          { type: string, maxLength: 200 }
+        originAddress:       { type: string, maxLength: 300 }
+        destinationName:     { type: string, maxLength: 200 }
+        destinationAddress:  { type: string, maxLength: 300 }
+        bookingRef:          { type: string, maxLength: 50 }
+        seatNumber:          { type: string, maxLength: 10 }
+        vehicleDetails:      { type: string, maxLength: 200 }
+        purchaseStatus:      { type: string, enum: [DRAFT, PENDING, RESERVED, CONFIRMED, CANCELLED, REFUNDED] }
+        priceAmount:         { type: number, minimum: 0, maximum: 9999.99 }
+        priceCurrency:       { type: string, minLength: 3, maxLength: 3 }
+        paymentMethodId:     { type: string, format: uuid }
 
     TripDaySummary:
       type: object
@@ -1455,15 +1251,19 @@ components:
             properties:
               from: { type: string, pattern: '^\d{2}:\d{2}$' }
               to:   { type: string, pattern: '^\d{2}:\d{2}$' }
-        eventCount:      { type: integer }
+        eventCount: { type: integer }
 
     # ── Budget ────────────────────────────────────────────────
     BudgetResponse:
       type: object
       properties:
-        id:         { type: string, format: uuid }
-        currency:   { type: string }
-        totalLimit: { type: number }
+        id:               { type: string, format: uuid }
+        tripId:           { type: string, format: uuid }
+        currency:         { type: string }
+        totalLimit:       { type: number }
+        totalEstimated:   { type: number }
+        totalActual:      { type: number }
+        percentageUsed:   { type: number }
         items:
           type: array
           items: { $ref: '#/components/schemas/BudgetItemResponse' }
@@ -1471,93 +1271,29 @@ components:
     BudgetItemResponse:
       type: object
       properties:
-        id:
-          type: string
-          format: uuid
-          description: Identificador único del gasto.
-          example: "550e8400-e29b-41d4-a716-446655440010"
-        eventId:
-          type: string
-          format: uuid
-          description: Evento asociado al gasto (si procede de un evento).
-          example: "550e8400-e29b-41d4-a716-446655440020"
-        eventTitle:
-          type: string
-          maxLength: 200
-          description: Título del evento asociado, enriquecido en consulta.
-          example: "Vuelo MAD-BCN"
-        bookingStatus:
-          type: string
-          enum: [DRAFT, PENDING, RESERVED, CONFIRMED, CANCELLED, REFUNDED]
-          description: Estado de compra del evento asociado (si aplica).
-          example: "RESERVED"
-        category:
-          type: string
-          enum: [TRANSPORT, ACCOMMODATION, FOOD, ACTIVITIES, SHOPPING, OTHER]
-          description: Categoría del gasto.
-          example: "TRANSPORT"
-        description:
-          type: string
-          minLength: 1
-          maxLength: 300
-          description: Descripción del gasto.
-          example: "Vuelo ida y vuelta MAD-BCN"
-        amountEstimated:
-          type: number
-          minimum: 0
-          maximum: 999999.99
-          description: Importe estimado del gasto.
-          example: 89.99
-        amountActual:
-          type: number
-          minimum: 0
-          maximum: 999999.99
-          description: Importe real pagado (se rellena tras el pago).
-          example: 85.00
-        currency:
-          type: string
-          minLength: 3
-          maxLength: 3
-          description: Moneda del gasto (ISO 4217).
-          example: "EUR"
-        isPaid:
-          type: boolean
-          description: Indica si el gasto ya ha sido pagado.
-          example: false
-        paidAt:
-          type: string
-          format: date-time
-          description: Fecha y hora en que se realizó el pago.
-          example: "2025-06-01T10:30:00+02:00"
-        notes:
-          type: string
-          maxLength: 1000
-          description: Notas adicionales sobre el gasto.
-          example: "Precio con descuento por reserva anticipada"
-        paymentMethodId:
-          type: string
-          format: uuid
-          description: Medio de pago utilizado.
-          example: "550e8400-e29b-41d4-a716-446655440030"
-        scheduledPayAt:
-          type: string
-          format: date-time
-          description: Fecha prevista de pago para alertas y timeline.
-          example: "2025-06-15T10:00:00+02:00"
-        reminderHoursBefore:
-          type: integer
-          minimum: 1
-          maximum: 720
-          description: Horas de antelación para enviar el recordatorio de pago.
-          example: 24
+        id:                  { type: string, format: uuid }
+        budgetId:            { type: string, format: uuid }
+        eventId:             { type: string, format: uuid }
+        eventTitle:          { type: string, maxLength: 200 }
+        bookingStatus:       { type: string, enum: [DRAFT, PENDING, RESERVED, CONFIRMED, CANCELLED, REFUNDED] }
+        category:            { type: string, enum: [TRANSPORT, ACCOMMODATION, FOOD, ACTIVITIES, SHOPPING, OTHER] }
+        description:         { type: string, minLength: 1, maxLength: 300 }
+        amountEstimated:     { type: number, minimum: 0, maximum: 999999.99 }
+        amountActual:        { type: number, minimum: 0, maximum: 999999.99 }
+        currency:            { type: string, minLength: 3, maxLength: 3 }
+        paid:                { type: boolean }
+        paidAt:              { type: string, format: date-time }
+        notes:               { type: string, maxLength: 1000 }
+        paymentMethodId:     { type: string, format: uuid }
+        scheduledPayAt:      { type: string, format: date-time }
+        reminderHoursBefore: { type: integer, minimum: 1, maximum: 720 }
 
     BudgetCategorySummary:
       type: object
       properties:
         category:       { type: string }
-        limitAmount:    { type: number }
-        totalEstimated: { type: number }
-        totalActual:    { type: number }
+        estimated:      { type: number }
+        actual:         { type: number }
         numItems:       { type: integer }
         numPaid:        { type: integer }
         percentageUsed: { type: number }
@@ -1566,130 +1302,66 @@ components:
       type: object
       required: [category, description, amountEstimated]
       properties:
-        eventId:
-          type: string
-          format: uuid
-          description: Evento asociado al gasto (opcional).
-          example: "550e8400-e29b-41d4-a716-446655440020"
-        category:
-          type: string
-          enum: [TRANSPORT, ACCOMMODATION, FOOD, ACTIVITIES, SHOPPING, OTHER]
-          description: Categoría del gasto.
-          example: "TRANSPORT"
-        description:
-          type: string
-          minLength: 1
-          maxLength: 300
-          description: Descripción del gasto.
-          example: "Vuelo ida y vuelta MAD-BCN"
-        amountEstimated:
-          type: number
-          minimum: 0
-          maximum: 999999.99
-          description: Importe estimado del gasto.
-          example: 89.99
-        currency:
-          type: string
-          minLength: 3
-          maxLength: 3
-          default: EUR
-          description: Moneda del gasto (ISO 4217).
-          example: "EUR"
-        notes:
-          type: string
-          maxLength: 1000
-          description: Notas adicionales sobre el gasto.
-          example: "Precio con descuento por reserva anticipada"
-        paymentMethodId:
-          type: string
-          format: uuid
-          description: Medio de pago a utilizar.
-          example: "550e8400-e29b-41d4-a716-446655440030"
-        scheduledPayAt:
-          type: string
-          format: date-time
-          description: Fecha prevista de pago.
-          example: "2025-06-15T10:00:00+02:00"
-        reminderHoursBefore:
-          type: integer
-          minimum: 1
-          maximum: 720
-          description: Horas de antelación para el recordatorio de pago.
-          example: 24
+        eventId:             { type: string, format: uuid }
+        category:            { type: string, enum: [TRANSPORT, ACCOMMODATION, FOOD, ACTIVITIES, SHOPPING, OTHER] }
+        description:         { type: string, minLength: 1, maxLength: 300 }
+        amountEstimated:     { type: number, minimum: 0, maximum: 999999.99 }
+        currency:            { type: string, minLength: 3, maxLength: 3, default: EUR }
+        notes:               { type: string, maxLength: 1000 }
+        paymentMethodId:     { type: string, format: uuid }
+        scheduledPayAt:      { type: string, format: date-time }
+        reminderHoursBefore: { type: integer, minimum: 1, maximum: 720 }
 
     UpdateBudgetItemRequest:
       type: object
       properties:
-        description:
-          type: string
-          minLength: 1
-          maxLength: 300
-          description: Nueva descripción del gasto.
-          example: "Vuelo ida y vuelta MAD-BCN (con equipaje)"
-        amountEstimated:
-          type: number
-          minimum: 0
-          maximum: 999999.99
-          description: Nuevo importe estimado.
-          example: 99.99
-        amountActual:
-          type: number
-          minimum: 0
-          maximum: 999999.99
-          description: Importe real pagado.
-          example: 85.00
-        isPaid:
-          type: boolean
-          description: Marcar como pagado.
-          example: true
-        notes:
-          type: string
-          maxLength: 1000
-          description: Notas adicionales.
-          example: "Factura guardada en Drive"
-        paymentMethodId:
-          type: string
-          format: uuid
-          description: Medio de pago utilizado.
-          example: "550e8400-e29b-41d4-a716-446655440030"
-        scheduledPayAt:
-          type: string
-          format: date-time
-          description: Nueva fecha prevista de pago.
-          example: "2025-06-20T10:00:00+02:00"
-        reminderHoursBefore:
-          type: integer
-          minimum: 1
-          maximum: 720
-          description: Horas de antelación para el recordatorio.
-          example: 48
+        description:         { type: string, minLength: 1, maxLength: 300 }
+        amountEstimated:     { type: number, minimum: 0, maximum: 999999.99 }
+        amountActual:        { type: number, minimum: 0, maximum: 999999.99 }
+        isPaid:              { type: boolean }
+        notes:               { type: string, maxLength: 1000 }
+        paymentMethodId:     { type: string, format: uuid }
+        scheduledPayAt:      { type: string, format: date-time }
+        reminderHoursBefore: { type: integer, minimum: 1, maximum: 720 }
 
     # ── Documents ─────────────────────────────────────────────
     DocumentResponse:
       type: object
       properties:
-        id:          { type: string, format: uuid }
-        fileName:    { type: string }
-        fileType:    { type: string }
-        parseStatus: { type: string, enum: [pending, processing, done, failed] }
-        parsedData:  { type: object }
-        parseError:  { type: string }
-        uploadedAt:  { type: string, format: date-time }
+        id:             { type: string, format: uuid }
+        tripId:         { type: string, format: uuid }
+        uploadedBy:     { type: string, format: uuid }
+        documentTypeId: { type: string }
+        displayName:    { type: string }
+        fileName:       { type: string }
+        fileUrl:        { type: string }
+        fileSizeBytes:  { type: integer, format: int64 }
+        fileType:       { type: string }
+        parseStatus:    { type: string, enum: [PENDING, PROCESSING, DONE, FAILED, NOT_REQUIRED] }
+        rawExtracted:   { type: string }
+        parsedData:     { type: object }
+        parseError:     { type: string }
+        validFrom:      { type: string, format: date }
+        validUntil:     { type: string, format: date }
+        notes:          { type: string }
+        uploadedAt:     { type: string, format: date-time }
+        expiringSoon:   { type: boolean }
+        expired:        { type: boolean }
 
     # ── Wishlist ──────────────────────────────────────────────
     WishlistItemResponse:
       type: object
       properties:
-        id:              { type: string, format: uuid }
-        name:            { type: string }
-        category:        { type: string }
-        destinationCity: { type: string }
-        latitude:        { type: number }
-        longitude:       { type: number }
-        priority:        { type: integer, enum: [1, 2, 3] }
-        rating:          { type: number }
-        estimatedCost:   { type: number }
-        websiteUrl:      { type: string }
+        id:                 { type: string, format: uuid }
+        name:               { type: string }
+        category:           { type: string }
+        destinationCity:    { type: string }
+        latitude:           { type: number }
+        longitude:          { type: number }
+        priority:           { type: integer, enum: [1, 2, 3] }
+        rating:             { type: number }
+        estimatedCost:      { type: number }
+        websiteUrl:         { type: string }
         convertedToEventId: { type: string, format: uuid }
 
     CreateWishlistItemRequest:
@@ -1724,15 +1396,67 @@ components:
         source:               { type: string, enum: [ai_generated, places_api, ticketmaster] }
         status:               { type: string, enum: [pending, accepted, dismissed] }
 
+    # ── Gaps ──────────────────────────────────────────────────
+    GapResponse:
+      type: object
+      properties:
+        id:             { type: string, format: uuid }
+        tripId:         { type: string, format: uuid }
+        gapType:
+          type: string
+          enum:
+            - NO_TRANSPORT_BETWEEN_DESTINATIONS
+            - ARRIVAL_WITHOUT_ACCOMMODATION
+            - DAYS_WITHOUT_ACCOMMODATION
+            - TRANSPORT_ONLY_DRAFT
+            - PENDING_PAYMENT_DEADLINE
+            - CANCELLATION_DEADLINE_NEAR
+            - TIGHT_CONNECTION
+            - FREE_DAYS
+        severity:         { type: string, enum: [ERROR, WARNING, INFO] }
+        affectedFrom:     { type: string, format: date }
+        affectedTo:       { type: string, format: date }
+        originCity:       { type: string }
+        originIata:       { type: string }
+        destinationCity:  { type: string }
+        destinationIata:  { type: string }
+        eventIdFrom:      { type: string, format: uuid }
+        eventIdTo:        { type: string, format: uuid }
+        status:           { type: string, enum: [OPEN, RESOLVED, IGNORED, SNOOZED] }
+        ignoredReason:    { type: string }
+        snoozedUntil:     { type: string, format: date-time }
+        suggestionText:   { type: string }
+        detectedAt:       { type: string, format: date-time }
+        resolvedAt:       { type: string, format: date-time }
+        active:           { type: boolean }
+
+    # ── Export ────────────────────────────────────────────────
+    ExportOptionsRequest:
+      type: object
+      properties:
+        language:         { type: string, minLength: 2, maxLength: 5, default: es }
+        includeBudget:    { type: boolean, default: false }
+        includeMap:       { type: boolean, default: true }
+        includeDocuments: { type: boolean, default: true }
+        exportType:       { type: string, enum: [full_itinerary, summary, budget_only], default: full_itinerary }
+
+    ExportResponse:
+      type: object
+      properties:
+        status:      { type: string, enum: [queued, processing, ready, failed] }
+        downloadUrl: { type: string }
+        expiresAt:   { type: string, format: date-time }
+
     # ── Payment Methods ──────────────────────────────────────
     PaymentMethodResponse:
       type: object
       properties:
-        id:       { type: string, format: uuid }
-        name:     { type: string }
-        type:     { type: string, enum: [card, transfer, cash, crypto, other] }
-        isActive: { type: boolean }
-        notes:    { type: string }
+        id:     { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        name:   { type: string }
+        type:   { type: string, enum: [card, transfer, cash, crypto, other] }
+        active: { type: boolean }
+        notes:  { type: string }
 
     CreatePaymentMethodRequest:
       type: object
@@ -1747,7 +1471,7 @@ components:
       properties:
         name:      { type: string, maxLength: 80 }
         notes:     { type: string }
-        isActive:  { type: boolean }
+        active:    { type: boolean }
         sortOrder: { type: integer }
 
     PaymentMethodReportResponse:
@@ -1762,20 +1486,222 @@ components:
         totalPending:      { type: number }
         totalAll:          { type: number }
         numExpenses:       { type: integer }
-        lines:
-          type: array
-          items: { $ref: '#/components/schemas/PaymentMethodReportLine' }
-
-    PaymentMethodReportLine:
-      type: object
-      properties:
-        expenseType:    { type: string }
-        description:    { type: string }
-        amount:         { type: number }
-        currency:       { type: string }
-        purchaseStatus: { type: string }
-        paidAt:         { type: string, format: date-time }
 
     PurchaseStatus:
       type: string
       enum: [DRAFT, PENDING, RESERVED, CONFIRMED, CANCELLED, REFUNDED]
+
+    # ── Flights ───────────────────────────────────────────────
+    FlightLookupResponse:
+      type: object
+      properties:
+        airline:
+          type: string
+          maxLength: 100
+          description: Airline name
+          example: "Iberia"
+        flightNumber:
+          type: string
+          maxLength: 10
+          description: IATA flight number
+          example: "IB1234"
+        originIata:
+          type: string
+          minLength: 3
+          maxLength: 3
+          description: Origin airport IATA code
+          example: "MAD"
+        originCity:
+          type: string
+          maxLength: 100
+          description: Origin city name
+          example: "Madrid"
+        destinationIata:
+          type: string
+          minLength: 3
+          maxLength: 3
+          description: Destination airport IATA code
+          example: "BCN"
+        destinationCity:
+          type: string
+          maxLength: 100
+          description: Destination city name
+          example: "Barcelona"
+        scheduledDeparture:
+          type: string
+          format: date-time
+          description: Scheduled departure time in UTC
+          example: "2025-07-15T08:00:00Z"
+        scheduledArrival:
+          type: string
+          format: date-time
+          description: Scheduled arrival time in UTC
+          example: "2025-07-15T09:05:00Z"
+        status:
+          type: string
+          maxLength: 50
+          description: Flight status
+          example: "Scheduled"
+        aircraftType:
+          type: string
+          maxLength: 50
+          description: Aircraft ICAO type code
+          example: "A320"
+
+    # ── eSIM ──────────────────────────────────────────────────
+    EsimDetail:
+      type: object
+      properties:
+        provider:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: eSIM provider name
+          example: "Airalo"
+        dataAllowanceGb:
+          type: number
+          minimum: 0
+          maximum: 999
+          description: Data allowance in GB
+          example: 5
+        coverageRegion:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Covered countries or region
+          example: "Europe"
+        activationCode:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: eSIM activation code (LPA or QR text)
+          example: "LPA:1$..."
+        activationDeadline:
+          type: string
+          format: date
+          description: Last date to activate the eSIM
+          example: "2025-07-20"
+        purchaseStatus:
+          type: string
+          enum: [DRAFT, PENDING, RESERVED, CONFIRMED, CANCELLED, REFUNDED]
+          description: Current purchase status
+          example: "CONFIRMED"
+        priceAmount:
+          type: number
+          minimum: 0
+          maximum: 9999
+          description: Total price paid
+          example: 14.99
+        priceCurrency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          description: ISO 4217 currency code
+          example: "EUR"
+        purchasePlatform:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Platform where purchased
+          example: "Airalo App"
+        purchasedAt:
+          type: string
+          format: date-time
+          description: Purchase timestamp
+          example: "2025-06-01T10:00:00Z"
+
+    EsimEventResponse:
+      allOf:
+        - $ref: '#/components/schemas/EventResponseBase'
+        - type: object
+          properties:
+            esim: { $ref: '#/components/schemas/EsimDetail' }
+
+    CreateEsimEventRequest:
+      allOf:
+        - $ref: '#/components/schemas/EventBase'
+        - type: object
+          properties:
+            esim: { $ref: '#/components/schemas/EsimDetail' }
+
+    # ── Insurance ─────────────────────────────────────────────
+    InsuranceDetail:
+      type: object
+      properties:
+        provider:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Insurance provider name
+          example: "Allianz Travel"
+        policyNumber:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Insurance policy number
+          example: "POL-2025-123456"
+        coverageType:
+          type: string
+          enum: [medical, cancellation, comprehensive, basic]
+          description: Type of coverage
+          example: "comprehensive"
+        coverageAmountEur:
+          type: number
+          minimum: 0
+          maximum: 9999999
+          description: Maximum coverage amount in EUR
+          example: 100000
+        emergencyPhone:
+          type: string
+          minLength: 1
+          maxLength: 30
+          description: 24h emergency assistance phone
+          example: "+34 900 123 456"
+        deductibleAmount:
+          type: number
+          minimum: 0
+          maximum: 99999
+          description: Deductible/excess amount
+          example: 150
+        purchaseStatus:
+          type: string
+          enum: [DRAFT, PENDING, RESERVED, CONFIRMED, CANCELLED, REFUNDED]
+          description: Current purchase status
+          example: "CONFIRMED"
+        priceAmount:
+          type: number
+          minimum: 0
+          maximum: 99999
+          description: Premium paid
+          example: 45.00
+        priceCurrency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          description: ISO 4217 currency code
+          example: "EUR"
+        purchasedAt:
+          type: string
+          format: date-time
+          description: Purchase timestamp
+          example: "2025-06-01T10:00:00Z"
+        beneficiaries:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Insured persons names
+          example: "Juan García, María López"
+
+    InsuranceEventResponse:
+      allOf:
+        - $ref: '#/components/schemas/EventResponseBase'
+        - type: object
+          properties:
+            insurance: { $ref: '#/components/schemas/InsuranceDetail' }
+
+    CreateInsuranceEventRequest:
+      allOf:
+        - $ref: '#/components/schemas/EventBase'
+        - type: object
+          properties:
+            insurance: { $ref: '#/components/schemas/InsuranceDetail' }

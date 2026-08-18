@@ -34,6 +34,10 @@ public class EventEntity {
     private ActivityEntity      activity;
     @OneToOne(mappedBy = "event", fetch = FetchType.EAGER, optional = true)
     private TransportEntity     transport;
+    @OneToOne(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY, optional = true)
+    private EsimEntity          esim;
+    @OneToOne(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY, optional = true)
+    private InsuranceEntity     insurance;
 
     @PrePersist void onCreate() { createdAt = updatedAt = OffsetDateTime.now(); }
     @PreUpdate  void onUpdate() { updatedAt = OffsetDateTime.now(); }

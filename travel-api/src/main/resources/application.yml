@@ -69,6 +69,13 @@ management:
       application: travelapp-api
       env: ${SPRING_PROFILES_ACTIVE:local}
 
+travelapp:
+  features:
+    flight-lookup:
+      enabled: false
+      api-key: ""  # Set in application-prod.yml only — never commit real keys
+      api-host: "aerodatabox.p.rapidapi.com"
+
 logging:
   level:
     com.travelapp: INFO

@@ -23,5 +23,7 @@ public record CreateEventCommand(
     AccommodationDetail accommodation,
     ActivityDetail      activity,
     TransportDetail     transport,
+    EsimDetail          esim,
+    InsuranceDetail     insurance,
     OffsetDateTime  scheduledPayAt
 ) {}

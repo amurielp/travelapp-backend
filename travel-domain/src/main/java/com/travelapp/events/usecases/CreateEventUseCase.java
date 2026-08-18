@@ -35,7 +35,9 @@ public class CreateEventUseCase {
 
         if (cmd.endDatetime() != null
                 && cmd.type() != EventType.ACCOMMODATION
-                && cmd.type() != EventType.DESTINATION) {
+                && cmd.type() != EventType.DESTINATION
+                && cmd.type() != EventType.ESIM
+                && cmd.type() != EventType.INSURANCE) {
             var overlapping = eventRepository
                 .findByTripIdAndDateRange(cmd.tripId(), cmd.startDatetime().toLocalDate(),
                                           cmd.endDatetime().toLocalDate())
@@ -70,6 +72,8 @@ public class CreateEventUseCase {
             .accommodation(cmd.accommodation())
             .activity(cmd.activity())
             .transport(cmd.transport())
+            .esim(cmd.esim())
+            .insurance(cmd.insurance())
             .build();
 
         TravelEvent saved = eventRepository.save(event);
@@ -115,6 +119,10 @@ public class CreateEventUseCase {
             case ACCOMMODATION -> e.getAccommodation() != null ? accommodationPrice(e)               : null;
             case ACTIVITY      -> e.getActivity()      != null ? e.getActivity().getPriceAmount()     : null;
             case TRANSPORT     -> e.getTransport()     != null ? e.getTransport().getPriceAmount()    : null;
+            case ESIM          -> e.getEsim()          != null && e.getEsim().getPriceAmount() != null
+                                  ? BigDecimal.valueOf(e.getEsim().getPriceAmount())      : null;
+            case INSURANCE     -> e.getInsurance()     != null && e.getInsurance().getPriceAmount() != null
+                                  ? BigDecimal.valueOf(e.getInsurance().getPriceAmount()) : null;
             default            -> null;
         };
     }
@@ -136,6 +144,8 @@ public class CreateEventUseCase {
             case ACCOMMODATION -> e.getAccommodation() != null ? e.getAccommodation().getPriceCurrency() : null;
             case ACTIVITY      -> e.getActivity()      != null ? e.getActivity().getPriceCurrency()      : null;
             case TRANSPORT     -> e.getTransport()     != null ? e.getTransport().getPriceCurrency()     : null;
+            case ESIM          -> e.getEsim()          != null ? e.getEsim().getPriceCurrency()          : null;
+            case INSURANCE     -> e.getInsurance()     != null ? e.getInsurance().getPriceCurrency()     : null;
             default            -> null;
         };
     }

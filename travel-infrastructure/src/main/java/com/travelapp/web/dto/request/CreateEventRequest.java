@@ -15,6 +15,8 @@ import java.time.OffsetDateTime;
     @JsonSubTypes.Type(value = CreateTransportEventRequest.class,     name = "TRANSPORT"),
     @JsonSubTypes.Type(value = CreateCustomEventRequest.class,        name = "CUSTOM"),
     @JsonSubTypes.Type(value = CreateDestinationEventRequest.class,   name = "DESTINATION"),
+    @JsonSubTypes.Type(value = CreateEsimEventRequest.class,          name = "ESIM"),
+    @JsonSubTypes.Type(value = CreateInsuranceEventRequest.class,     name = "INSURANCE"),
 })
 public abstract class CreateEventRequest {
     @NotBlank

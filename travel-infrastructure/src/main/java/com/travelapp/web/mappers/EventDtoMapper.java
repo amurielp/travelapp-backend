@@ -20,6 +20,8 @@ public interface EventDtoMapper {
             case TRANSPORT     -> new TransportEventResponse();
             case CUSTOM        -> new CustomEventResponse();
             case DESTINATION   -> new DestinationEventResponse();
+            case ESIM          -> new EsimEventResponse();
+            case INSURANCE     -> new InsuranceEventResponse();
         };
         r.setId(event.getId());
         r.setTripId(event.getTripId());
@@ -42,6 +44,8 @@ public interface EventDtoMapper {
         if (r instanceof AccommodationEventResponse ar) ar.setAccommodation(event.getAccommodation());
         if (r instanceof ActivityEventResponse      ar) ar.setActivity(event.getActivity());
         if (r instanceof TransportEventResponse     tr) tr.setTransport(event.getTransport());
+        if (r instanceof EsimEventResponse          er) er.setEsim(event.getEsim());
+        if (r instanceof InsuranceEventResponse     ir) ir.setInsurance(event.getInsurance());
         return r;
     }
 
@@ -65,6 +69,8 @@ public interface EventDtoMapper {
             req instanceof CreateAccommodationEventRequest r ? r.getAccommodation() : null,
             req instanceof CreateActivityEventRequest      r ? r.getActivity()      : null,
             req instanceof CreateTransportEventRequest     r ? r.getTransport()     : null,
+            req instanceof CreateEsimEventRequest          r ? r.getEsim()          : null,
+            req instanceof CreateInsuranceEventRequest     r ? r.getInsurance()     : null,
             req.getScheduledPayAt()
         );
     }
