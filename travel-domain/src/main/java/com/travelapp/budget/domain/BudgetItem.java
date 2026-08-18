@@ -32,6 +32,10 @@ public class BudgetItem {
         this.paidAt       = OffsetDateTime.now();
     }
 
+    public void updateEstimate(BigDecimal newAmount) {
+        this.amountEstimated = newAmount;
+    }
+
     public void schedulePayment(OffsetDateTime payAt, Integer hoursBeforeReminder) {
         this.scheduledPayAt      = payAt;
         this.reminderHoursBefore = hoursBeforeReminder;

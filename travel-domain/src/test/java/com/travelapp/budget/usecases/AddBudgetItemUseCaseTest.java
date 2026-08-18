@@ -36,7 +36,7 @@ class AddBudgetItemUseCaseTest {
         when(budgets.saveItem(any())).thenAnswer(inv -> inv.getArgument(0));
 
         var cmd = new AddBudgetItemCommand(tripId, null, BudgetCategory.FOOD,
-            "Dinner", new BigDecimal("45"), null);
+            "Dinner", new BigDecimal("45"), null, null, null, null, null);
 
         var result = useCase.execute(cmd);
 
@@ -52,7 +52,7 @@ class AddBudgetItemUseCaseTest {
         when(budgets.saveItem(any())).thenAnswer(inv -> inv.getArgument(0));
 
         var cmd = new AddBudgetItemCommand(tripId, null, BudgetCategory.TRANSPORT,
-            "Taxi", new BigDecimal("20"), "USD");
+            "Taxi", new BigDecimal("20"), "USD", null, null, null, null);
 
         var result = useCase.execute(cmd);
 
@@ -64,7 +64,7 @@ class AddBudgetItemUseCaseTest {
         when(budgets.findByTripId(tripId)).thenReturn(Optional.empty());
 
         var cmd = new AddBudgetItemCommand(tripId, null, BudgetCategory.FOOD,
-            "Lunch", new BigDecimal("30"), null);
+            "Lunch", new BigDecimal("30"), null, null, null, null, null);
 
         assertThatThrownBy(() -> useCase.execute(cmd))
             .isInstanceOf(TripNotFoundException.class);

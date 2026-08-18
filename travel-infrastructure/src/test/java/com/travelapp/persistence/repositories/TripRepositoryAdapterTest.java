@@ -85,8 +85,10 @@ class TripRepositoryAdapterTest {
 
     @Test
     void findSharedWith_returnsEmptyList() {
-        assertThat(adapter.findSharedWith(UUID.randomUUID())).isEmpty();
-        verifyNoInteractions(jpa);
+        var userId = UUID.randomUUID();
+        when(jpa.findSharedWithUser(userId)).thenReturn(List.of());
+        assertThat(adapter.findSharedWith(userId)).isEmpty();
+        verify(jpa).findSharedWithUser(userId);
     }
 
     @Test

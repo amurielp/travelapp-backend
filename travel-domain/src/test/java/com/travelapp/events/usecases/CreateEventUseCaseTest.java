@@ -1,5 +1,6 @@
 package com.travelapp.events.usecases;
 
+import com.travelapp.budget.ports.BudgetRepository;
 import com.travelapp.events.domain.*;
 import com.travelapp.events.ports.EventRepository;
 import com.travelapp.shared.exceptions.EventOverlapException;
@@ -18,6 +19,7 @@ import static org.mockito.Mockito.*;
 class CreateEventUseCaseTest {
 
     @Mock EventRepository eventRepository;
+    @Mock BudgetRepository budgetRepository;
     @InjectMocks CreateEventUseCase useCase;
 
     private final UUID tripId = UUID.randomUUID();
@@ -32,7 +34,7 @@ class CreateEventUseCaseTest {
             tripId, null, type, "Event", null, null,
             dt(startHour), endHour >= 0 ? dt(endHour) : null,
             false, tz, EventSource.MANUAL,
-            null, null, null, null, null, null, null, null
+            null, null, null, null, null, null, null, null, null, null
         );
     }
 
@@ -74,8 +76,15 @@ class CreateEventUseCaseTest {
     void execute_accommodation_noOverlapCheck() {
         when(eventRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        // ACCOMMODATION type skips overlap check — repository not called for date range
-        var result = useCase.execute(cmd(EventType.ACCOMMODATION, 14, -1));
+        var acc = AccommodationDetail.builder().name("Hotel Test").build();
+        var cmd = new CreateEventCommand(
+            tripId, null, EventType.ACCOMMODATION, "Hotel Test", null, null,
+            dt(14), null,
+            false, tz, EventSource.MANUAL,
+            null, null, null, null, acc, null, null, null, null, null
+        );
+
+        var result = useCase.execute(cmd);
 
         assertThat(result.getType()).isEqualTo(EventType.ACCOMMODATION);
         verify(eventRepository, never()).findByTripIdAndDateRange(any(), any(), any());

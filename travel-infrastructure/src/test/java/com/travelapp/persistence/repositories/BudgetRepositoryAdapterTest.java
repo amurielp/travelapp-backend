@@ -3,6 +3,7 @@ package com.travelapp.persistence.repositories;
 import com.travelapp.budget.domain.*;
 import com.travelapp.persistence.entities.*;
 import com.travelapp.persistence.mappers.BudgetMapper;
+import com.travelapp.persistence.repositories.EventJpaRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
@@ -19,6 +20,7 @@ class BudgetRepositoryAdapterTest {
 
     @Mock BudgetJpaRepository budgetJpa;
     @Mock BudgetItemJpaRepository itemJpa;
+    @Mock EventJpaRepository eventJpa;
     @Mock BudgetMapper mapper;
     @InjectMocks BudgetRepositoryAdapter adapter;
 
@@ -39,9 +41,7 @@ class BudgetRepositoryAdapterTest {
     @Test
     void findByTripId_found_returnsWithItems() {
         var entity = budgetEntity();
-        var b = budget();
         when(budgetJpa.findByTripId(tripId)).thenReturn(Optional.of(entity));
-        when(mapper.toDomain(entity)).thenReturn(b);
         when(itemJpa.findByBudgetId(budgetId)).thenReturn(List.of());
 
         var result = adapter.findByTripId(tripId);
