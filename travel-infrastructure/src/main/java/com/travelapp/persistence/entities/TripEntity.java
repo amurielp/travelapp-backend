@@ -51,6 +51,9 @@ public class TripEntity {
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
 
+    @Column(name = "deleted_at")
+    private OffsetDateTime deletedAt;
+
     @PrePersist
     void onCreate() { createdAt = updatedAt = OffsetDateTime.now(); }
 

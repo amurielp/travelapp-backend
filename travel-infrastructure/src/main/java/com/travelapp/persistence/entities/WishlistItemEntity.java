@@ -22,5 +22,9 @@ public class WishlistItemEntity {
     @Column(name = "website_url")                       private String websiteUrl;
     @Column(name = "converted_to_event_id")             private UUID convertedToEventId;
     @Column(updatable = false)                          private OffsetDateTime createdAt;
-    @PrePersist void onCreate() { createdAt = OffsetDateTime.now(); }
+    @Column(name = "updated_at")                        private OffsetDateTime updatedAt;
+    @Column(name = "deleted_at")                        private OffsetDateTime deletedAt;
+
+    @PrePersist void onCreate() { createdAt = updatedAt = OffsetDateTime.now(); }
+    @PreUpdate  void onUpdate() { updatedAt = OffsetDateTime.now(); }
 }

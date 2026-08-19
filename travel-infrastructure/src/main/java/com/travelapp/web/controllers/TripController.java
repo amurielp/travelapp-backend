@@ -2,6 +2,7 @@ package com.travelapp.web.controllers;
 
 import com.travelapp.trips.usecases.*;
 import com.travelapp.web.dto.request.*;
+import com.travelapp.web.dto.response.ShareTripResponse;
 import com.travelapp.web.dto.response.TripResponse;
 import com.travelapp.web.mappers.TripDtoMapper;
 import jakarta.validation.Valid;
@@ -24,6 +25,7 @@ public class TripController {
     private final DeleteTripUseCase         deleteTrip;
     private final PublishTripUseCase        publishTrip;
     private final ValidateTripAccessUseCase validateAccess;
+    private final ShareTripUseCase          shareTrip;
     private final TripDtoMapper             mapper;
 
     @PostMapping
@@ -68,6 +70,14 @@ public class TripController {
             @PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
         validateAccess.execute(id, userId(jwt));
         return ResponseEntity.ok(mapper.toResponse(publishTrip.execute(id)));
+    }
+
+    @PostMapping("/{id}/share")
+    public ResponseEntity<ShareTripResponse> share(
+            @PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
+        validateAccess.execute(id, userId(jwt));
+        var result = shareTrip.execute(id);
+        return ResponseEntity.ok(new ShareTripResponse(result.deepLink(), result.webUrl(), result.expiresAt()));
     }
 
     private UUID userId(Jwt jwt) { return UUID.fromString(jwt.getSubject()); }

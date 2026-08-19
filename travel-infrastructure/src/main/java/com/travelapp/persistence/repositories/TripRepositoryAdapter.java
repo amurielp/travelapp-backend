@@ -6,6 +6,8 @@ import com.travelapp.trips.ports.TripRepository;
 import com.travelapp.persistence.mappers.TripMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+import java.time.OffsetDateTime;
 import java.util.*;
 
 @Repository
@@ -22,7 +24,7 @@ public class TripRepositoryAdapter implements TripRepository {
 
     @Override
     public Optional<Trip> findById(UUID id) {
-        return jpa.findById(id).map(mapper::toDomain);
+        return jpa.findByIdAndDeletedAtIsNull(id).map(mapper::toDomain);
     }
 
     @Override
@@ -38,7 +40,8 @@ public class TripRepositoryAdapter implements TripRepository {
     }
 
     @Override
-    public void deleteById(UUID id) { jpa.deleteById(id); }
+    @Transactional
+    public void deleteById(UUID id) { jpa.softDeleteById(id, OffsetDateTime.now()); }
 
     @Override
     public boolean existsByPublicSlug(String slug) {

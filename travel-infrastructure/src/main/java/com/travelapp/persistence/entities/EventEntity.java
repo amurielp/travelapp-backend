@@ -25,6 +25,7 @@ public class EventEntity {
     private Double longitude;
     @Column(updatable = false)                          private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
+    @Column(name = "deleted_at")                        private OffsetDateTime deletedAt;
 
     @OneToOne(mappedBy = "event", fetch = FetchType.EAGER, optional = true)
     private FlightEntity        flight;

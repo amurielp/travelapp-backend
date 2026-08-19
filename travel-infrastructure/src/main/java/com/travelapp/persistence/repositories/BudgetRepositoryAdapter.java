@@ -38,11 +38,12 @@ public class BudgetRepositoryAdapter implements BudgetRepository {
 
     @Override
     public Optional<BudgetItem> findItemById(UUID id) {
-        return itemJpa.findById(id).map(mapper::itemToDomain).map(this::enrich);
+        return itemJpa.findByIdAndDeletedAtIsNull(id).map(mapper::itemToDomain).map(this::enrich);
     }
 
     @Override
-    public void deleteItem(UUID id) { itemJpa.deleteById(id); }
+    @Transactional
+    public void deleteItem(UUID id) { itemJpa.softDeleteById(id, OffsetDateTime.now()); }
 
     @Override
     public List<CategorySummary> getSummaryByTripId(UUID tripId) {
@@ -82,7 +83,7 @@ public class BudgetRepositoryAdapter implements BudgetRepository {
     // ---- helpers ----
 
     private Budget loadWithItems(BudgetEntity entity) {
-        List<BudgetItem> items = itemJpa.findByBudgetId(entity.getId())
+        List<BudgetItem> items = itemJpa.findByBudgetIdAndDeletedAtIsNull(entity.getId())
             .stream().map(mapper::itemToDomain).map(this::enrich).toList();
         return Budget.builder()
             .id(entity.getId())

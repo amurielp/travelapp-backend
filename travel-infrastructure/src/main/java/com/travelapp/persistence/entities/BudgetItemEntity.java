@@ -25,5 +25,9 @@ public class BudgetItemEntity {
     @Column(name = "reminder_hours_before")             private Integer reminderHoursBefore;
     @Column(name = "reminder_sent_at")                  private OffsetDateTime reminderSentAt;
     @Column(updatable = false)                          private OffsetDateTime createdAt;
-    @PrePersist void onCreate() { createdAt = OffsetDateTime.now(); }
+    @Column(name = "updated_at")                        private OffsetDateTime updatedAt;
+    @Column(name = "deleted_at")                        private OffsetDateTime deletedAt;
+
+    @PrePersist void onCreate() { createdAt = updatedAt = OffsetDateTime.now(); }
+    @PreUpdate  void onUpdate() { updatedAt = OffsetDateTime.now(); }
 }

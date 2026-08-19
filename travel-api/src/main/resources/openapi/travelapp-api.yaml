@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: TravelApp API
-  version: 1.1.0
+  version: 1.2.0
   description: |
     API REST de TravelApp. Fuente de verdad — los controllers y DTOs
     de Spring Boot se generan automáticamente desde este fichero
@@ -33,6 +33,12 @@ tags:
   - name: Flights
   - name: Travel Services
     description: eSIM and travel insurance
+  - name: Sync
+    description: Delta sync para clientes móviles offline-first
+  - name: Subscriptions
+    description: Gestión de suscripciones in-app (Apple / Google / Stripe via RevenueCat)
+  - name: Notifications
+    description: Registro y revocación de tokens FCM para push notifications
 
 paths:
 
@@ -810,6 +816,218 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/PaymentMethodReportResponse' }
+
+  # ── FEATURES (mobile feature flags) ──────────────────────
+  /v1/me/features:
+    get:
+      tags: [Users]
+      operationId: getMyFeatures
+      summary: Feature flags activos para el usuario autenticado
+      description: Devuelve los feature flags calculados según el plan del usuario y los desbloqueos temporales activos por rewarded ads.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserFeaturesResponse' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  # ── SYNC ──────────────────────────────────────────────────
+  /v1/sync:
+    get:
+      tags: [Sync]
+      operationId: deltaSync
+      summary: Delta sync para cliente móvil offline-first
+      description: Devuelve entidades modificadas o borradas desde el timestamp indicado. Usar el campo `syncedAt` de la respuesta como `since` en la siguiente llamada.
+      parameters:
+        - name: since
+          in: query
+          required: true
+          description: Timestamp ISO 8601 desde el que calcular el delta
+          schema:
+            type: string
+            format: date-time
+            example: "2026-08-01T00:00:00Z"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SyncResponse' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  # ── TRIP SHARE ────────────────────────────────────────────
+  /v1/trips/{tripId}/share:
+    parameters:
+      - { $ref: '#/components/parameters/TripId' }
+    post:
+      tags: [Trips]
+      operationId: shareTrip
+      summary: Genera deep link para compartir el viaje
+      description: Genera un Universal Link (iOS) / App Link (Android). Si el receptor no tiene la app instalada, redirige al itinerario web público.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShareTripResponse' }
+        "404": { $ref: '#/components/responses/NotFound' }
+
+  # ── INVITES ───────────────────────────────────────────────
+  /v1/me/invites:
+    get:
+      tags: [Users]
+      operationId: listMyInvites
+      summary: Invitaciones pendientes a viajes compartidos
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                minItems: 0
+                maxItems: 100
+                items: { $ref: '#/components/schemas/TripInviteResponse' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /v1/invites/{token}/accept:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: Token de invitación recibido por email o deep link
+        schema: { type: string, minLength: 1, maxLength: 200, example: "inv_abc123xyz" }
+    post:
+      tags: [Users]
+      operationId: acceptInvite
+      summary: Aceptar invitación a un viaje compartido
+      responses:
+        "200": { $ref: '#/components/responses/TripResponse' }
+        "404": { $ref: '#/components/responses/NotFound' }
+        "409":
+          description: Invitación ya aceptada o expirada
+
+  # ── SUBSCRIPTIONS ─────────────────────────────────────────
+  /v1/subscriptions/me:
+    get:
+      tags: [Subscriptions]
+      operationId: getMySubscription
+      summary: Estado de la suscripción activa del usuario
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubscriptionResponse' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /v1/subscriptions/verify:
+    post:
+      tags: [Subscriptions]
+      operationId: verifySubscriptionReceipt
+      summary: Verificar receipt de App Store o Google Play vía RevenueCat
+      description: Valida el receipt con RevenueCat y actualiza el plan del usuario. Llamar tras completar una compra in-app.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VerifyReceiptRequest' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubscriptionResponse' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  # ── DEVICE TOKENS (FCM) ───────────────────────────────────
+  /v1/device-tokens:
+    post:
+      tags: [Notifications]
+      operationId: registerDeviceToken
+      summary: Registrar token FCM del dispositivo
+      description: Llamar al iniciar sesión. Si ya existe un token para la plataforma del usuario, lo reemplaza.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterDeviceTokenRequest' }
+      responses:
+        "204": { description: Token registrado }
+        "400": { $ref: '#/components/responses/BadRequest' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /v1/device-tokens/{platform}:
+    parameters:
+      - name: platform
+        in: path
+        required: true
+        description: Plataforma del token a revocar
+        schema: { type: string, enum: [ios, android, web], example: "ios" }
+    delete:
+      tags: [Notifications]
+      operationId: revokeDeviceToken
+      summary: Revocar token FCM al cerrar sesión
+      description: Marca el token de la plataforma indicada como inactivo para que no reciba más notificaciones push.
+      responses:
+        "204": { description: Token revocado }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  # ── CONSENT (GDPR) ────────────────────────────────────────
+  /v1/me/consent:
+    get:
+      tags: [Users]
+      operationId: getMyConsent
+      summary: Estado de consentimiento GDPR del usuario
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConsentResponse' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+    put:
+      tags: [Users]
+      operationId: updateMyConsent
+      summary: Actualizar consentimiento tras diálogo UMP
+      description: Llamar tras mostrar el Google User Messaging Platform dialog con la respuesta del usuario. Debe llamarse incluso si el usuario deniega el consentimiento.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateConsentRequest' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConsentResponse' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+
+  # ── REWARDED ADS ──────────────────────────────────────────
+  /v1/me/rewarded-unlock:
+    post:
+      tags: [Users]
+      operationId: rewardedUnlock
+      summary: Registrar rewarded ad completado y desbloquear feature temporal
+      description: Llamar después de que el usuario complete un anuncio recompensado. El backend registra el desbloqueo con TTL; el siguiente GET /v1/me/features lo reflejará.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RewardedUnlockRequest' }
+      responses:
+        "200":
+          description: Feature desbloqueada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RewardedUnlockResponse' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
 
 # ─────────────────────────────────────────────────────────────
 # COMPONENTS
@@ -1705,3 +1923,345 @@ components:
         - type: object
           properties:
             insurance: { $ref: '#/components/schemas/InsuranceDetail' }
+
+    # ── Features ──────────────────────────────────────────────
+    UserFeaturesResponse:
+      type: object
+      properties:
+        showAds:
+          type: boolean
+          description: Si el usuario debe ver publicidad (true para plan free, false para premium/pro)
+          example: true
+        aiSuggestions:
+          type: boolean
+          description: Si el usuario tiene acceso a sugerencias IA personalizadas
+          example: false
+        aiPdfParsing:
+          type: boolean
+          description: Si el usuario tiene acceso al parsing de PDFs con IA
+          example: false
+        multiTraveler:
+          type: boolean
+          description: Si el usuario puede crear viajes compartidos con otros usuarios
+          example: false
+        plan:
+          type: string
+          minLength: 2
+          maxLength: 20
+          enum: [free, premium, pro]
+          description: Plan activo del usuario
+          example: "free"
+        planExpiresAt:
+          type: string
+          format: date-time
+          description: Fecha de expiración del plan de pago (null si plan free)
+          example: "2026-09-18T23:59:59Z"
+        rewardedUnlocks:
+          type: array
+          minItems: 0
+          maxItems: 20
+          description: Desbloqueos temporales activos por rewarded ads
+          items: { $ref: '#/components/schemas/ActiveRewardedUnlock' }
+
+    ActiveRewardedUnlock:
+      type: object
+      properties:
+        featureKey:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Clave de la feature desbloqueada temporalmente
+          example: "ai_suggestions"
+        expiresAt:
+          type: string
+          format: date-time
+          description: Momento en que expira el desbloqueo
+          example: "2026-08-19T14:00:00Z"
+
+    # ── Sync ──────────────────────────────────────────────────
+    SyncResponse:
+      type: object
+      properties:
+        syncedAt:
+          type: string
+          format: date-time
+          description: Timestamp del servidor en el momento del sync. Usar como `since` en la siguiente llamada.
+          example: "2026-08-18T12:00:00Z"
+        updated:
+          type: object
+          description: Entidades modificadas o creadas desde `since`
+          properties:
+            trips:
+              type: array
+              minItems: 0
+              maxItems: 1000
+              items: { $ref: '#/components/schemas/TripResponse' }
+            budgetItems:
+              type: array
+              minItems: 0
+              maxItems: 5000
+              items: { $ref: '#/components/schemas/BudgetItemResponse' }
+            wishlistItems:
+              type: array
+              minItems: 0
+              maxItems: 1000
+              items: { $ref: '#/components/schemas/WishlistItemResponse' }
+        deleted:
+          type: object
+          description: IDs de entidades soft-deleted desde `since`
+          properties:
+            tripIds:
+              type: array
+              minItems: 0
+              maxItems: 1000
+              items: { type: string, format: uuid }
+              example: ["3fa85f64-5717-4562-b3fc-2c963f66afa6"]
+            budgetItemIds:
+              type: array
+              minItems: 0
+              maxItems: 5000
+              items: { type: string, format: uuid }
+              example: []
+            wishlistItemIds:
+              type: array
+              minItems: 0
+              maxItems: 1000
+              items: { type: string, format: uuid }
+              example: []
+
+    # ── Share ─────────────────────────────────────────────────
+    ShareTripResponse:
+      type: object
+      properties:
+        deepLink:
+          type: string
+          minLength: 10
+          maxLength: 500
+          description: Universal Link (iOS) / App Link (Android) para abrir el viaje en la app
+          example: "https://travelapp.com/trips/abc123"
+        webUrl:
+          type: string
+          minLength: 10
+          maxLength: 500
+          description: URL de fallback que abre el itinerario en el navegador
+          example: "https://travelapp.com/trips/public/japon-2026"
+        expiresAt:
+          type: string
+          format: date-time
+          description: Fecha de expiración del deep link (null si no expira)
+          example: "2026-12-31T23:59:59Z"
+
+    # ── Invites ───────────────────────────────────────────────
+    TripInviteResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          minLength: 10
+          maxLength: 200
+          description: Token para aceptar con POST /v1/invites/{token}/accept
+          example: "inv_abc123xyz"
+        tripId:
+          type: string
+          format: uuid
+          description: ID del viaje al que se invita
+          example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        tripTitle:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: Título del viaje
+          example: "Japón 2026"
+        invitedBy:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: Nombre del usuario que envió la invitación
+          example: "María García"
+        expiresAt:
+          type: string
+          format: date-time
+          description: Fecha límite para aceptar la invitación
+          example: "2026-08-25T23:59:59Z"
+
+    # ── Subscriptions ─────────────────────────────────────────
+    SubscriptionResponse:
+      type: object
+      properties:
+        planId:
+          type: string
+          minLength: 2
+          maxLength: 20
+          enum: [free, premium, pro]
+          description: Plan contratado
+          example: "premium"
+        status:
+          type: string
+          minLength: 4
+          maxLength: 10
+          enum: [trial, active, cancelled, expired]
+          description: Estado actual de la suscripción
+          example: "active"
+        store:
+          type: string
+          minLength: 5
+          maxLength: 6
+          enum: [apple, google, stripe]
+          description: Tienda donde se realizó la compra
+          example: "apple"
+        autoRenew:
+          type: boolean
+          description: Si la suscripción se renueva automáticamente
+          example: true
+        startedAt:
+          type: string
+          format: date-time
+          description: Fecha de inicio de la suscripción
+          example: "2026-07-18T10:00:00Z"
+        expiresAt:
+          type: string
+          format: date-time
+          description: Fecha de expiración o próxima renovación
+          example: "2026-09-18T10:00:00Z"
+        trialEnd:
+          type: string
+          format: date
+          description: Fecha de fin del período de prueba (null si no aplica)
+          example: "2026-08-25"
+
+    VerifyReceiptRequest:
+      type: object
+      required: [store, receiptData]
+      properties:
+        store:
+          type: string
+          minLength: 5
+          maxLength: 6
+          enum: [apple, google]
+          description: Tienda de la que procede el receipt
+          example: "apple"
+        receiptData:
+          type: string
+          minLength: 1
+          maxLength: 10000
+          description: Receipt en base64 (Apple) o purchase token (Google) devuelto por el SDK de RevenueCat
+          example: "MIIT..."
+        productId:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Product ID de la tienda
+          example: "com.travelapp.premium.monthly"
+
+    # ── Device Tokens ─────────────────────────────────────────
+    RegisterDeviceTokenRequest:
+      type: object
+      required: [platform, fcmToken]
+      properties:
+        platform:
+          type: string
+          minLength: 3
+          maxLength: 7
+          enum: [ios, android, web]
+          description: Plataforma del dispositivo
+          example: "ios"
+        fcmToken:
+          type: string
+          minLength: 10
+          maxLength: 500
+          description: Token FCM devuelto por Firebase SDK
+          example: "dGhpcyBpcyBhIHRva2Vu..."
+        deviceModel:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Modelo del dispositivo (informativo)
+          example: "iPhone 15 Pro"
+        appVersion:
+          type: string
+          minLength: 1
+          maxLength: 20
+          description: Versión de la app instalada
+          example: "1.0.0"
+
+    # ── Consent ───────────────────────────────────────────────
+    ConsentResponse:
+      type: object
+      properties:
+        adsPersonalized:
+          type: boolean
+          description: Si el usuario ha consentido publicidad personalizada
+          example: false
+        analytics:
+          type: boolean
+          description: Si el usuario ha consentido el uso de analytics
+          example: true
+        consentVersion:
+          type: string
+          minLength: 1
+          maxLength: 20
+          description: Versión del formulario de consentimiento mostrado
+          example: "1.0"
+        consentedAt:
+          type: string
+          format: date-time
+          description: Timestamp en que el usuario respondió al diálogo de consentimiento
+          example: "2026-08-18T10:00:00Z"
+
+    UpdateConsentRequest:
+      type: object
+      required: [adsPersonalized, analytics, consentVersion]
+      properties:
+        adsPersonalized:
+          type: boolean
+          description: Si el usuario consiente publicidad personalizada
+          example: false
+        analytics:
+          type: boolean
+          description: Si el usuario consiente analytics
+          example: true
+        consentVersion:
+          type: string
+          minLength: 1
+          maxLength: 20
+          description: Versión del formulario de consentimiento que se mostró
+          example: "1.0"
+
+    # ── Rewarded Unlocks ──────────────────────────────────────
+    RewardedUnlockRequest:
+      type: object
+      required: [featureKey, ttlHours]
+      properties:
+        featureKey:
+          type: string
+          minLength: 1
+          maxLength: 50
+          enum: [ai_suggestions, ai_pdf_parsing]
+          description: Clave de la feature a desbloquear temporalmente
+          example: "ai_suggestions"
+        ttlHours:
+          type: integer
+          minimum: 1
+          maximum: 72
+          description: Duración del desbloqueo en horas
+          example: 24
+
+    RewardedUnlockResponse:
+      type: object
+      properties:
+        featureKey:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Clave de la feature desbloqueada
+          example: "ai_suggestions"
+        unlockedAt:
+          type: string
+          format: date-time
+          description: Timestamp del desbloqueo
+          example: "2026-08-18T14:00:00Z"
+        expiresAt:
+          type: string
+          format: date-time
+          description: Timestamp de expiración del desbloqueo
+          example: "2026-08-19T14:00:00Z"
