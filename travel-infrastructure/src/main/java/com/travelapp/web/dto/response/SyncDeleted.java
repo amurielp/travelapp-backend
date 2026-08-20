@@ -5,6 +5,6 @@ import java.util.UUID;
 
 public record SyncDeleted(
     List<UUID> tripIds,
-    List<UUID> budgetItemIds,
+    List<UUID> expenseIds,
     List<UUID> wishlistItemIds
 ) {}

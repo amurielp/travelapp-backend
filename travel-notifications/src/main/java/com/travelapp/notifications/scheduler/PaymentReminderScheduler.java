@@ -1,6 +1,6 @@
 package com.travelapp.notifications.scheduler;
 
-import com.travelapp.budget.usecases.SendPaymentRemindersUseCase;
+import com.travelapp.expenses.usecase.SendPaymentRemindersUseCase;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;

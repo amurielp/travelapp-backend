@@ -20,8 +20,8 @@ public class DeltaSyncUseCase {
             .syncedAt(OffsetDateTime.now())
             .updatedTrips(syncRepository.findTripsUpdatedSince(userId, since))
             .deletedTripIds(syncRepository.findTripIdsDeletedSince(userId, since))
-            .updatedBudgetItems(syncRepository.findBudgetItemsUpdatedSince(userId, since))
-            .deletedBudgetItemIds(syncRepository.findBudgetItemIdsDeletedSince(userId, since))
+            .updatedExpenses(syncRepository.findExpensesUpdatedSince(userId, since))
+            .deletedExpenseIds(syncRepository.findExpenseIdsDeletedSince(userId, since))
             .updatedWishlistItems(syncRepository.findWishlistItemsUpdatedSince(userId, since))
             .deletedWishlistItemIds(syncRepository.findWishlistItemIdsDeletedSince(userId, since))
             .build();

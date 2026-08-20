@@ -1,6 +1,6 @@
 package com.travelapp.events.usecases;
 
-import com.travelapp.budget.ports.BudgetRepository;
+import com.travelapp.expenses.port.ExpenseRepository;
 import com.travelapp.events.domain.*;
 import com.travelapp.events.ports.EventRepository;
 import com.travelapp.shared.exceptions.EventOverlapException;
@@ -18,8 +18,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class CreateEventUseCaseTest {
 
-    @Mock EventRepository eventRepository;
-    @Mock BudgetRepository budgetRepository;
+    @Mock EventRepository   eventRepository;
+    @Mock ExpenseRepository expenseRepository;
     @InjectMocks CreateEventUseCase useCase;
 
     private final UUID tripId = UUID.randomUUID();

@@ -44,8 +44,8 @@ class DeltaSyncUseCaseTest {
         Trip trip = Trip.builder().id(UUID.randomUUID()).ownerId(userId).title("Beach").build();
         when(syncRepository.findTripsUpdatedSince(eq(userId), any())).thenReturn(List.of(trip));
         when(syncRepository.findTripIdsDeletedSince(eq(userId), any())).thenReturn(Collections.emptyList());
-        when(syncRepository.findBudgetItemsUpdatedSince(eq(userId), any())).thenReturn(Collections.emptyList());
-        when(syncRepository.findBudgetItemIdsDeletedSince(eq(userId), any())).thenReturn(Collections.emptyList());
+        when(syncRepository.findExpensesUpdatedSince(eq(userId), any())).thenReturn(Collections.emptyList());
+        when(syncRepository.findExpenseIdsDeletedSince(eq(userId), any())).thenReturn(Collections.emptyList());
         when(syncRepository.findWishlistItemsUpdatedSince(eq(userId), any())).thenReturn(Collections.emptyList());
         when(syncRepository.findWishlistItemIdsDeletedSince(eq(userId), any())).thenReturn(Collections.emptyList());
 
@@ -59,8 +59,8 @@ class DeltaSyncUseCaseTest {
         UUID deletedId = UUID.randomUUID();
         when(syncRepository.findTripsUpdatedSince(eq(userId), any())).thenReturn(Collections.emptyList());
         when(syncRepository.findTripIdsDeletedSince(eq(userId), any())).thenReturn(List.of(deletedId));
-        when(syncRepository.findBudgetItemsUpdatedSince(eq(userId), any())).thenReturn(Collections.emptyList());
-        when(syncRepository.findBudgetItemIdsDeletedSince(eq(userId), any())).thenReturn(Collections.emptyList());
+        when(syncRepository.findExpensesUpdatedSince(eq(userId), any())).thenReturn(Collections.emptyList());
+        when(syncRepository.findExpenseIdsDeletedSince(eq(userId), any())).thenReturn(Collections.emptyList());
         when(syncRepository.findWishlistItemsUpdatedSince(eq(userId), any())).thenReturn(Collections.emptyList());
         when(syncRepository.findWishlistItemIdsDeletedSince(eq(userId), any())).thenReturn(Collections.emptyList());
 
@@ -77,15 +77,15 @@ class DeltaSyncUseCaseTest {
 
         assertThat(result.getUpdatedTrips()).isNotNull().isEmpty();
         assertThat(result.getDeletedTripIds()).isNotNull().isEmpty();
-        assertThat(result.getUpdatedBudgetItems()).isNotNull().isEmpty();
-        assertThat(result.getDeletedBudgetItemIds()).isNotNull().isEmpty();
+        assertThat(result.getUpdatedExpenses()).isNotNull().isEmpty();
+        assertThat(result.getDeletedExpenseIds()).isNotNull().isEmpty();
     }
 
     private void stubEmptyRepo() {
         when(syncRepository.findTripsUpdatedSince(eq(userId), any())).thenReturn(Collections.emptyList());
         when(syncRepository.findTripIdsDeletedSince(eq(userId), any())).thenReturn(Collections.emptyList());
-        when(syncRepository.findBudgetItemsUpdatedSince(eq(userId), any())).thenReturn(Collections.emptyList());
-        when(syncRepository.findBudgetItemIdsDeletedSince(eq(userId), any())).thenReturn(Collections.emptyList());
+        when(syncRepository.findExpensesUpdatedSince(eq(userId), any())).thenReturn(Collections.emptyList());
+        when(syncRepository.findExpenseIdsDeletedSince(eq(userId), any())).thenReturn(Collections.emptyList());
         when(syncRepository.findWishlistItemsUpdatedSince(eq(userId), any())).thenReturn(Collections.emptyList());
         when(syncRepository.findWishlistItemIdsDeletedSince(eq(userId), any())).thenReturn(Collections.emptyList());
     }

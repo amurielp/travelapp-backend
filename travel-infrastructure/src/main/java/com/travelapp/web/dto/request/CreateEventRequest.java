@@ -33,6 +33,6 @@ public abstract class CreateEventRequest {
     protected String         locationName;
     protected Double         latitude;
     protected Double         longitude;
-    // Fecha prevista de pago — se traslada automáticamente al BudgetItem creado
+    // Fecha prevista de pago — se traslada automáticamente al Expense creado
     protected OffsetDateTime scheduledPayAt;
 }

@@ -57,7 +57,7 @@ class TripRepositoryAdapterTest {
     void findById_found_returnsMappedDomain() {
         var entity = entity();
         var trip = trip();
-        when(jpa.findById(id)).thenReturn(Optional.of(entity));
+        when(jpa.findByIdAndDeletedAtIsNull(id)).thenReturn(Optional.of(entity));
         when(mapper.toDomain(entity)).thenReturn(trip);
 
         var result = adapter.findById(id);
@@ -67,7 +67,7 @@ class TripRepositoryAdapterTest {
 
     @Test
     void findById_notFound_returnsEmpty() {
-        when(jpa.findById(id)).thenReturn(Optional.empty());
+        when(jpa.findByIdAndDeletedAtIsNull(id)).thenReturn(Optional.empty());
         assertThat(adapter.findById(id)).isEmpty();
     }
 
@@ -94,7 +94,7 @@ class TripRepositoryAdapterTest {
     @Test
     void deleteById_callsJpa() {
         adapter.deleteById(id);
-        verify(jpa).deleteById(id);
+        verify(jpa).softDeleteById(eq(id), any());
     }
 
     @Test

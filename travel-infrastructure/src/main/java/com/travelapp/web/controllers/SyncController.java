@@ -1,13 +1,13 @@
 package com.travelapp.web.controllers;
 
 import com.travelapp.sync.usecases.DeltaSyncUseCase;
-import com.travelapp.web.dto.response.BudgetItemResponse;
+import com.travelapp.web.dto.response.ExpenseResponse;
 import com.travelapp.web.dto.response.SyncDeleted;
 import com.travelapp.web.dto.response.SyncResponse;
 import com.travelapp.web.dto.response.SyncUpdated;
 import com.travelapp.web.dto.response.TripResponse;
 import com.travelapp.web.dto.response.WishlistItemResponse;
-import com.travelapp.web.mappers.BudgetDtoMapper;
+import com.travelapp.web.mappers.ExpenseDtoMapper;
 import com.travelapp.web.mappers.TripDtoMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -28,7 +28,7 @@ public class SyncController {
 
     private final DeltaSyncUseCase deltaSync;
     private final TripDtoMapper    tripMapper;
-    private final BudgetDtoMapper  budgetMapper;
+    private final ExpenseDtoMapper expenseMapper;
 
     @GetMapping("/sync")
     public ResponseEntity<SyncResponse> sync(
@@ -40,7 +40,7 @@ public class SyncController {
             result.getSyncedAt(),
             new SyncUpdated(
                 result.getUpdatedTrips().stream().map(tripMapper::toResponse).toList(),
-                result.getUpdatedBudgetItems().stream().map(budgetMapper::toItemResponse).toList(),
+                result.getUpdatedExpenses().stream().map(expenseMapper::toExpenseResponse).toList(),
                 result.getUpdatedWishlistItems().stream().map(w -> new WishlistItemResponse(
                     w.getId(), w.getName(), w.getCategory(), w.getDestinationCity(),
                     w.getLatitude(), w.getLongitude(), w.getPriority(), null,
@@ -49,7 +49,7 @@ public class SyncController {
             ),
             new SyncDeleted(
                 result.getDeletedTripIds(),
-                result.getDeletedBudgetItemIds(),
+                result.getDeletedExpenseIds(),
                 result.getDeletedWishlistItemIds()
             )
         ));

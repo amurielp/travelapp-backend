@@ -1,7 +1,8 @@
 package com.travelapp.events.usecases;
 
-import com.travelapp.budget.domain.*;
-import com.travelapp.budget.ports.BudgetRepository;
+import com.travelapp.expenses.domain.Expense;
+import com.travelapp.expenses.domain.ExpenseCategory;
+import com.travelapp.expenses.port.ExpenseRepository;
 import com.travelapp.events.domain.*;
 import com.travelapp.events.ports.EventRepository;
 import com.travelapp.shared.exceptions.DomainValidationException;
@@ -13,15 +14,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class CreateEventUseCase {
 
-    private final EventRepository  eventRepository;
-    private final BudgetRepository budgetRepository;
+    private final EventRepository   eventRepository;
+    private final ExpenseRepository expenseRepository;
 
     @Transactional
     public TravelEvent execute(CreateEventCommand cmd) {
@@ -78,39 +78,31 @@ public class CreateEventUseCase {
 
         TravelEvent saved = eventRepository.save(event);
 
-        autoCreateBudgetItem(saved, cmd.scheduledPayAt());
+        autoCreateExpense(saved, cmd.scheduledPayAt());
 
         return saved;
     }
 
-    // ── Budget auto-creation ──────────────────────────────────
+    // ── Expense auto-creation ──────────────────────────────────
 
-    private void autoCreateBudgetItem(TravelEvent event, OffsetDateTime scheduledPayAt) {
+    private void autoCreateExpense(TravelEvent event, OffsetDateTime scheduledPayAt) {
         var price    = extractPrice(event);
         var currency = extractCurrency(event);
         if (price == null || price.compareTo(BigDecimal.ZERO) == 0) return;
 
-        var budget = budgetRepository.findByTripId(event.getTripId())
-            .orElseGet(() -> budgetRepository.save(Budget.builder()
-                .id(UUID.randomUUID())
-                .tripId(event.getTripId())
-                .currency(currency != null ? currency : "EUR")
-                .items(new ArrayList<>())
-                .build()));
-
-        var item = BudgetItem.builder()
+        var expense = Expense.builder()
             .id(UUID.randomUUID())
-            .budgetId(budget.getId())
+            .tripId(event.getTripId())
             .eventId(event.getId())
             .category(resolveCategory(event.getType()))
             .description(resolveDescription(event))
             .amountEstimated(price)
-            .currency(currency != null ? currency : budget.getCurrency())
+            .currency(currency != null ? currency : "EUR")
             .isPaid(false)
             .scheduledPayAt(scheduledPayAt)
             .build();
 
-        budgetRepository.saveItem(item);
+        expenseRepository.save(expense);
     }
 
     private BigDecimal extractPrice(TravelEvent e) {
@@ -150,12 +142,12 @@ public class CreateEventUseCase {
         };
     }
 
-    private BudgetCategory resolveCategory(EventType type) {
+    private ExpenseCategory resolveCategory(EventType type) {
         return switch (type) {
-            case FLIGHT, TRANSPORT -> BudgetCategory.TRANSPORT;
-            case ACCOMMODATION     -> BudgetCategory.ACCOMMODATION;
-            case ACTIVITY          -> BudgetCategory.ACTIVITIES;
-            default                -> BudgetCategory.OTHER;
+            case FLIGHT, TRANSPORT -> ExpenseCategory.TRANSPORT;
+            case ACCOMMODATION     -> ExpenseCategory.ACCOMMODATION;
+            case ACTIVITY          -> ExpenseCategory.ACTIVITIES;
+            default                -> ExpenseCategory.OTHER;
         };
     }
 

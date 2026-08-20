@@ -51,14 +51,14 @@ class WishlistRepositoryAdapterTest {
     void findById_found() {
         var e = entity();
         var w = item();
-        when(jpa.findById(id)).thenReturn(Optional.of(e));
+        when(jpa.findByIdAndDeletedAtIsNull(id)).thenReturn(Optional.of(e));
         when(mapper.toDomain(e)).thenReturn(w);
         assertThat(adapter.findById(id)).contains(w);
     }
 
     @Test
     void findById_notFound_returnsEmpty() {
-        when(jpa.findById(id)).thenReturn(Optional.empty());
+        when(jpa.findByIdAndDeletedAtIsNull(id)).thenReturn(Optional.empty());
         assertThat(adapter.findById(id)).isEmpty();
     }
 
@@ -66,7 +66,7 @@ class WishlistRepositoryAdapterTest {
     void findByTripId_returnsList() {
         var e = entity();
         var w = item();
-        when(jpa.findByTripIdOrderByPriorityAsc(tripId)).thenReturn(List.of(e));
+        when(jpa.findByTripIdAndDeletedAtIsNullOrderByPriorityAsc(tripId)).thenReturn(List.of(e));
         when(mapper.toDomain(e)).thenReturn(w);
         assertThat(adapter.findByTripId(tripId)).containsExactly(w);
     }
@@ -75,7 +75,7 @@ class WishlistRepositoryAdapterTest {
     void findByTripIdAndCity_delegates() {
         var e = entity();
         var w = item();
-        when(jpa.findByTripIdAndDestinationCityOrderByPriorityAsc(tripId, "Barcelona"))
+        when(jpa.findByTripIdAndDestinationCityAndDeletedAtIsNullOrderByPriorityAsc(tripId, "Barcelona"))
             .thenReturn(List.of(e));
         when(mapper.toDomain(e)).thenReturn(w);
         assertThat(adapter.findByTripIdAndCity(tripId, "Barcelona")).containsExactly(w);
@@ -84,6 +84,6 @@ class WishlistRepositoryAdapterTest {
     @Test
     void deleteById_callsJpa() {
         adapter.deleteById(id);
-        verify(jpa).deleteById(id);
+        verify(jpa).softDeleteById(eq(id), any());
     }
 }
