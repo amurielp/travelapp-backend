@@ -23,6 +23,8 @@ public class EventEntity {
     @Column(name = "location_name")                     private String locationName;
     private Double latitude;
     private Double longitude;
+    @Column(name = "origin_latitude")                   private Double originLatitude;
+    @Column(name = "origin_longitude")                  private Double originLongitude;
     @Column(updatable = false)                          private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
     @Column(name = "deleted_at")                        private OffsetDateTime deletedAt;

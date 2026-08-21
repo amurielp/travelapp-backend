@@ -6,9 +6,9 @@ import java.util.UUID;
 
 public record UpdateExpenseRequest(
     String         description,
-    BigDecimal     amountEstimated,
-    BigDecimal     amountActual,
+    BigDecimal     amount,
     Boolean        isPaid,
+    OffsetDateTime paidAt,
     String         notes,
     UUID           paymentMethodId,
     OffsetDateTime scheduledPayAt,

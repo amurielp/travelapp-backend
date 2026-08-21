@@ -7,8 +7,7 @@ import java.util.UUID;
 public record ExpenseSummaryResponse(
     UUID                   tripId,
     String                 currency,
-    BigDecimal             totalEstimated,
-    BigDecimal             totalActual,
-    BigDecimal             percentageUsed,
+    BigDecimal             total,
+    BigDecimal             totalPaid,
     List<ExpenseResponse>  items
 ) {}

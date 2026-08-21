@@ -1,60 +1,24 @@
--- ── Step 1: Only operate on budget_items if it still exists ──────────────────
+-- Rename amount_estimated → amount, drop amount_actual
+-- Drop dependent views first so the column drop does not fail
+DROP VIEW IF EXISTS v_payment_method_summary;
+DROP VIEW IF EXISTS v_payment_method_report;
+
 DO $$
 BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.tables
-               WHERE table_schema = 'public' AND table_name = 'budget_items') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_schema = 'public' AND table_name = 'expenses'
+                 AND column_name = 'amount_estimated') THEN
+        ALTER TABLE expenses RENAME COLUMN amount_estimated TO amount;
+    END IF;
 
-        -- Add trip_id column if missing
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
-                       WHERE table_schema = 'public'
-                         AND table_name   = 'budget_items'
-                         AND column_name  = 'trip_id') THEN
-            ALTER TABLE budget_items ADD COLUMN trip_id UUID;
-        END IF;
-
-        -- Backfill trip_id from budgets only if budgets still exists
-        IF EXISTS (SELECT 1 FROM information_schema.tables
-                   WHERE table_schema = 'public' AND table_name = 'budgets') THEN
-            UPDATE budget_items bi
-            SET    trip_id = b.trip_id
-            FROM   budgets b
-            WHERE  bi.budget_id = b.id
-              AND  bi.trip_id IS NULL;
-        END IF;
-
-        -- Drop dependent views before rename
-        DROP VIEW IF EXISTS v_payment_method_summary;
-        DROP VIEW IF EXISTS v_payment_method_report;
-
-        -- Set NOT NULL only when no nulls remain (safe on empty table)
-        IF NOT EXISTS (SELECT 1 FROM budget_items WHERE trip_id IS NULL) THEN
-            ALTER TABLE budget_items ALTER COLUMN trip_id SET NOT NULL;
-        END IF;
-
-        -- Drop the Hibernate-created expenses table if it exists (empty shell)
-        DROP TABLE IF EXISTS expenses;
-        -- Rename budget_items to expenses
-        ALTER TABLE budget_items RENAME TO expenses;
-
-    ELSE
-        -- Table already renamed; still drop views so CREATE OR REPLACE works cleanly
-        DROP VIEW IF EXISTS v_payment_method_summary;
-        DROP VIEW IF EXISTS v_payment_method_report;
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_schema = 'public' AND table_name = 'expenses'
+                 AND column_name = 'amount_actual') THEN
+        ALTER TABLE expenses DROP COLUMN amount_actual;
     END IF;
 END $$;
 
--- ── Step 2: Clean up expenses table (all IF EXISTS — safe to rerun) ──────────
-ALTER TABLE expenses DROP COLUMN IF EXISTS budget_id;
-ALTER TABLE expenses DROP COLUMN IF EXISTS budget_id_deprecated;
-
-DROP INDEX IF EXISTS idx_budget_items_b;
-DROP INDEX IF EXISTS idx_budget_items_scheduled_pay;
-CREATE INDEX IF NOT EXISTS idx_expenses_trip          ON expenses(trip_id);
-CREATE INDEX IF NOT EXISTS idx_expenses_scheduled_pay ON expenses(scheduled_pay_at);
-
-DROP TABLE IF EXISTS budgets;
-
--- ── Step 3: Recreate views (CREATE OR REPLACE — always safe) ─────────────────
+-- Update the v_payment_method_report view to use the renamed column
 CREATE OR REPLACE VIEW v_payment_method_report AS
 WITH all_expenses AS (
 
@@ -98,7 +62,7 @@ WITH all_expenses AS (
         ex.trip_id,
         ex.category             AS expense_type,
         ex.description,
-        COALESCE(ex.amount_actual, ex.amount_estimated) AS amount,
+        ex.amount,
         ex.currency,
         CASE WHEN ex.is_paid THEN 'CONFIRMED' ELSE 'PENDING' END AS purchase_status,
         ex.paid_at

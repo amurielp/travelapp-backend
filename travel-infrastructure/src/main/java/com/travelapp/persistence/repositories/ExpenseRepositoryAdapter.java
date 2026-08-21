@@ -33,6 +33,11 @@ public class ExpenseRepositoryAdapter implements ExpenseRepository {
     }
 
     @Override
+    public Optional<Expense> findByEventId(UUID eventId) {
+        return expenseJpa.findByEventIdAndDeletedAtIsNull(eventId).map(mapper::toDomain).map(this::enrich);
+    }
+
+    @Override
     public List<Expense> findByTripId(UUID tripId) {
         return expenseJpa.findByTripIdAndDeletedAtIsNull(tripId).stream()
             .map(mapper::toDomain)
@@ -74,9 +79,8 @@ public class ExpenseRepositoryAdapter implements ExpenseRepository {
             .map(row -> new ExpenseRepository.CategorySummary(
                 ExpenseCategory.valueOf((String) row[0]),
                 row[1] != null ? new BigDecimal(row[1].toString()) : BigDecimal.ZERO,
-                row[2] != null ? new BigDecimal(row[2].toString()) : BigDecimal.ZERO,
-                row[3] != null ? ((Number) row[3]).intValue() : 0,
-                row[4] != null ? ((Number) row[4]).intValue() : 0
+                row[2] != null ? ((Number) row[2]).intValue() : 0,
+                row[3] != null ? ((Number) row[3]).intValue() : 0
             )).toList();
     }
 
@@ -91,8 +95,7 @@ public class ExpenseRepositoryAdapter implements ExpenseRepository {
                 .eventId(expense.getEventId())
                 .category(expense.getCategory())
                 .description(expense.getDescription())
-                .amountEstimated(expense.getAmountEstimated())
-                .amountActual(expense.getAmountActual())
+                .amount(expense.getAmount())
                 .currency(expense.getCurrency())
                 .isPaid(expense.isPaid())
                 .paidAt(expense.getPaidAt())

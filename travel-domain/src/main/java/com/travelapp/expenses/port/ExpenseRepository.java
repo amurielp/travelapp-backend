@@ -14,6 +14,8 @@ public interface ExpenseRepository {
 
     Optional<Expense> findById(UUID id);
 
+    Optional<Expense> findByEventId(UUID eventId);
+
     List<Expense> findByTripId(UUID tripId);
 
     void delete(UUID id);
@@ -28,8 +30,7 @@ public interface ExpenseRepository {
 
     record CategorySummary(
         ExpenseCategory category,
-        BigDecimal      totalEstimated,
-        BigDecimal      totalActual,
+        BigDecimal      totalAmount,
         int             numItems,
         int             numPaid
     ) {}

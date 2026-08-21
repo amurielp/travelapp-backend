@@ -20,8 +20,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class CreateEventUseCase {
 
-    private final EventRepository   eventRepository;
-    private final ExpenseRepository expenseRepository;
+    private final EventRepository    eventRepository;
+    private final ExpenseRepository  expenseRepository;
+    private final EventGeocodingHelper geocodingHelper;
 
     @Transactional
     public TravelEvent execute(CreateEventCommand cmd) {
@@ -51,6 +52,12 @@ public class CreateEventUseCase {
             }
         }
 
+        double[] geo       = geocodingHelper.resolve(
+            cmd.type(), cmd.latitude(), cmd.longitude(),
+            cmd.locationName(), cmd.title(),
+            cmd.flight(), cmd.accommodation(), cmd.activity(), cmd.transport());
+        double[] originGeo = geocodingHelper.resolveOrigin(cmd.type(), cmd.flight(), cmd.transport());
+
         var event = TravelEvent.builder()
             .id(UUID.randomUUID())
             .tripId(cmd.tripId())
@@ -66,8 +73,10 @@ public class CreateEventUseCase {
             .status(EventStatus.CONFIRMED)
             .source(cmd.source() != null ? cmd.source() : EventSource.MANUAL)
             .locationName(cmd.locationName())
-            .latitude(cmd.latitude())
-            .longitude(cmd.longitude())
+            .latitude(      geo       != null ? Double.valueOf(geo[0])       : cmd.latitude())
+            .longitude(     geo       != null ? Double.valueOf(geo[1])       : cmd.longitude())
+            .originLatitude(originGeo != null ? Double.valueOf(originGeo[0]) : null)
+            .originLongitude(originGeo!= null ? Double.valueOf(originGeo[1]) : null)
             .flight(cmd.flight())
             .accommodation(cmd.accommodation())
             .activity(cmd.activity())
@@ -96,9 +105,10 @@ public class CreateEventUseCase {
             .eventId(event.getId())
             .category(resolveCategory(event.getType()))
             .description(resolveDescription(event))
-            .amountEstimated(price)
+            .amount(price)
             .currency(currency != null ? currency : "EUR")
-            .isPaid(false)
+            .isPaid(true)
+            .paidAt(OffsetDateTime.now())
             .scheduledPayAt(scheduledPayAt)
             .build();
 

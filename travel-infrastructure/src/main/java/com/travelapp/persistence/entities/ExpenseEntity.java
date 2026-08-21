@@ -6,7 +6,7 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-@Entity @Table(name = "budget_items")
+@Entity @Table(name = "expenses")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class ExpenseEntity {
     @Id @GeneratedValue(strategy = GenerationType.UUID) private UUID id;
@@ -14,8 +14,7 @@ public class ExpenseEntity {
     @Column(name = "event_id")                          private UUID eventId;
     @Column(nullable = false)                           private String category;
     @Column(nullable = false)                           private String description;
-    @Column(name = "amount_estimated")                  private BigDecimal amountEstimated;
-    @Column(name = "amount_actual")                     private BigDecimal amountActual;
+    @Column(name = "amount", nullable = false)           private BigDecimal amount;
     @Column(nullable = false)                           private String currency;
     @Column(name = "is_paid", nullable = false)         private boolean isPaid;
     @Column(name = "paid_at")                           private OffsetDateTime paidAt;

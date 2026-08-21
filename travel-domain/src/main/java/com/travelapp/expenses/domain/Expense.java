@@ -12,8 +12,7 @@ public class Expense {
     private UUID               eventId;
     private ExpenseCategory    category;
     private String             description;
-    private BigDecimal         amountEstimated;
-    private BigDecimal         amountActual;
+    private BigDecimal         amount;
     private String             currency;
     private boolean            isPaid;
     private OffsetDateTime     paidAt;
@@ -26,14 +25,13 @@ public class Expense {
     private String             bookingStatus;
     private String             eventTitle;
 
-    public void markPaid(BigDecimal actual) {
-        this.amountActual = actual;
-        this.isPaid       = true;
-        this.paidAt       = OffsetDateTime.now();
+    public void markPaid() {
+        this.isPaid = true;
+        this.paidAt = OffsetDateTime.now();
     }
 
-    public void updateEstimate(BigDecimal newAmount) {
-        this.amountEstimated = newAmount;
+    public void updateAmount(BigDecimal newAmount) {
+        this.amount = newAmount;
     }
 
     public void schedulePayment(OffsetDateTime payAt, Integer hoursBeforeReminder) {

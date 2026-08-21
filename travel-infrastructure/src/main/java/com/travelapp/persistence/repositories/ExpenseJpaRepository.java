@@ -12,6 +12,8 @@ public interface ExpenseJpaRepository extends JpaRepository<ExpenseEntity, UUID>
 
     Optional<ExpenseEntity> findByIdAndDeletedAtIsNull(UUID id);
 
+    Optional<ExpenseEntity> findByEventIdAndDeletedAtIsNull(UUID eventId);
+
     List<ExpenseEntity> findByTripIdAndDeletedAtIsNull(UUID tripId);
 
     @Query("""
@@ -44,8 +46,7 @@ public interface ExpenseJpaRepository extends JpaRepository<ExpenseEntity, UUID>
 
     @Query("""
         SELECT e.category,
-               SUM(e.amountEstimated),
-               SUM(e.amountActual),
+               SUM(e.amount),
                COUNT(e),
                SUM(CASE WHEN e.isPaid = true THEN 1 ELSE 0 END)
         FROM ExpenseEntity e

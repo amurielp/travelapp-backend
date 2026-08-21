@@ -24,6 +24,8 @@ public class TravelEvent extends AggregateRoot<UUID> {
     private String          locationName;
     private Double          latitude;
     private Double          longitude;
+    private Double          originLatitude;
+    private Double          originLongitude;
 
     // Detalle específico — solo uno estará presente según el type
     private FlightDetail        flight;
@@ -35,6 +37,8 @@ public class TravelEvent extends AggregateRoot<UUID> {
 
     public void confirm()  { this.status = EventStatus.CONFIRMED; }
     public void cancel()   { this.status = EventStatus.CANCELLED; }
+    public void applyCoordinates(double lat, double lon) { this.latitude = lat; this.longitude = lon; }
+    public void applyOriginCoordinates(double lat, double lon) { this.originLatitude = lat; this.originLongitude = lon; }
 
     public void update(com.travelapp.events.usecases.UpdateEventCommand cmd) {
         if (cmd.title()         != null) this.title         = cmd.title();

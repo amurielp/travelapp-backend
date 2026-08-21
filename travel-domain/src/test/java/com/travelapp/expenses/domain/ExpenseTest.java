@@ -13,24 +13,23 @@ class ExpenseTest {
         return Expense.builder()
             .id(UUID.randomUUID()).tripId(UUID.randomUUID())
             .category(ExpenseCategory.ACCOMMODATION).description("Hotel")
-            .amountEstimated(new BigDecimal("200")).currency("EUR")
+            .amount(new BigDecimal("200")).currency("EUR")
             .isPaid(paid).build();
     }
 
     @Test
-    void markPaid_setsAmountAndPaidFlag() {
+    void markPaid_setsPaidFlag() {
         var e = expense(false);
-        e.markPaid(new BigDecimal("185"));
+        e.markPaid();
         assertThat(e.isPaid()).isTrue();
-        assertThat(e.getAmountActual()).isEqualByComparingTo("185");
         assertThat(e.getPaidAt()).isNotNull();
     }
 
     @Test
-    void updateEstimate_changesAmount() {
+    void updateAmount_changesAmount() {
         var e = expense(false);
-        e.updateEstimate(new BigDecimal("250"));
-        assertThat(e.getAmountEstimated()).isEqualByComparingTo("250");
+        e.updateAmount(new BigDecimal("250"));
+        assertThat(e.getAmount()).isEqualByComparingTo("250");
     }
 
     @Test
@@ -39,7 +38,7 @@ class ExpenseTest {
         var e = Expense.builder()
             .id(UUID.randomUUID()).tripId(UUID.randomUUID())
             .category(ExpenseCategory.FOOD).description("Dinner")
-            .amountEstimated(new BigDecimal("50")).currency("EUR").isPaid(false)
+            .amount(new BigDecimal("50")).currency("EUR").isPaid(false)
             .scheduledPayAt(scheduledAt).reminderHoursBefore(3)
             .build();
         assertThat(e.isReminderDue(OffsetDateTime.now())).isTrue();
@@ -51,7 +50,7 @@ class ExpenseTest {
         var e = Expense.builder()
             .id(UUID.randomUUID()).tripId(UUID.randomUUID())
             .category(ExpenseCategory.FOOD).description("Dinner")
-            .amountEstimated(new BigDecimal("50")).currency("EUR").isPaid(false)
+            .amount(new BigDecimal("50")).currency("EUR").isPaid(false)
             .scheduledPayAt(scheduledAt).reminderHoursBefore(3)
             .reminderSentAt(OffsetDateTime.now().minusMinutes(5))
             .build();

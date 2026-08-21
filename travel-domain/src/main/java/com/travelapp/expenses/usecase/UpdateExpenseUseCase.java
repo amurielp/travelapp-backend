@@ -17,18 +17,23 @@ public class UpdateExpenseUseCase {
         Expense item = expenseRepository.findById(cmd.itemId())
             .orElseThrow(() -> new ResourceNotFoundException("Expense", cmd.itemId()));
 
+        boolean nowPaid = cmd.isPaid() != null ? cmd.isPaid() : item.isPaid();
+        OffsetDateTime paidAt = nowPaid
+            ? (cmd.paidAt() != null ? cmd.paidAt()
+                : item.getPaidAt() != null ? item.getPaidAt()
+                : OffsetDateTime.now())
+            : null;
+
         Expense updated = Expense.builder()
             .id(item.getId())
             .tripId(item.getTripId())
             .eventId(item.getEventId())
             .category(item.getCategory())
             .description(cmd.description() != null ? cmd.description() : item.getDescription())
-            .amountEstimated(cmd.amountEstimated() != null ? cmd.amountEstimated() : item.getAmountEstimated())
-            .amountActual(cmd.amountActual() != null ? cmd.amountActual() : item.getAmountActual())
+            .amount(cmd.amount() != null ? cmd.amount() : item.getAmount())
             .currency(item.getCurrency())
-            .isPaid(cmd.isPaid() != null ? cmd.isPaid() : item.isPaid())
-            .paidAt(cmd.isPaid() != null && cmd.isPaid() && item.getPaidAt() == null
-                ? OffsetDateTime.now() : item.getPaidAt())
+            .isPaid(nowPaid)
+            .paidAt(paidAt)
             .notes(cmd.notes() != null ? cmd.notes() : item.getNotes())
             .paymentMethodId(cmd.paymentMethodId() != null ? cmd.paymentMethodId() : item.getPaymentMethodId())
             .scheduledPayAt(cmd.scheduledPayAt() != null ? cmd.scheduledPayAt() : item.getScheduledPayAt())

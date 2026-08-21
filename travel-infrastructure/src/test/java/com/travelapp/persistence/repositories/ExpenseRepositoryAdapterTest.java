@@ -13,7 +13,6 @@ import java.math.BigDecimal;
 import java.util.*;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -33,7 +32,7 @@ class ExpenseRepositoryAdapterTest {
         e.setTripId(tripId);
         e.setCategory("FOOD");
         e.setDescription("Lunch");
-        e.setAmountEstimated(new BigDecimal("30"));
+        e.setAmount(new BigDecimal("30"));
         e.setCurrency("EUR");
         return e;
     }
@@ -41,7 +40,7 @@ class ExpenseRepositoryAdapterTest {
     private Expense domain() {
         return Expense.builder().id(expenseId).tripId(tripId)
             .category(ExpenseCategory.FOOD).description("Lunch")
-            .amountEstimated(new BigDecimal("30")).currency("EUR").isPaid(false).build();
+            .amount(new BigDecimal("30")).currency("EUR").isPaid(false).build();
     }
 
     @Test
@@ -79,14 +78,14 @@ class ExpenseRepositoryAdapterTest {
 
     @Test
     void getSummaryByTripId_mapsRawRows() {
-        var row = new Object[]{"FOOD", new BigDecimal("200"), new BigDecimal("150"), 3L, 2L};
+        var row = new Object[]{"FOOD", new BigDecimal("200"), 3L, 2L};
         when(expenseJpa.getCategorySummaryRaw(tripId)).thenReturn(List.<Object[]>of(row));
 
         var result = adapter.getSummaryByTripId(tripId);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).category()).isEqualTo(ExpenseCategory.FOOD);
-        assertThat(result.get(0).totalEstimated()).isEqualByComparingTo("200");
+        assertThat(result.get(0).totalAmount()).isEqualByComparingTo("200");
         assertThat(result.get(0).numItems()).isEqualTo(3);
         assertThat(result.get(0).numPaid()).isEqualTo(2);
     }

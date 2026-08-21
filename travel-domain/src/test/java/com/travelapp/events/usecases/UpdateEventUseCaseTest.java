@@ -2,6 +2,7 @@ package com.travelapp.events.usecases;
 
 import com.travelapp.events.domain.*;
 import com.travelapp.events.ports.EventRepository;
+import com.travelapp.expenses.port.ExpenseRepository;
 import com.travelapp.shared.exceptions.EventNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,7 +18,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class UpdateEventUseCaseTest {
 
-    @Mock EventRepository eventRepository;
+    @Mock EventRepository   eventRepository;
+    @Mock ExpenseRepository expenseRepository;
     @InjectMocks UpdateEventUseCase useCase;
 
     private final UUID tripId = UUID.randomUUID();
