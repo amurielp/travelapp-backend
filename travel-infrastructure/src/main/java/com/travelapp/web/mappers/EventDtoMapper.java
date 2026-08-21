@@ -39,6 +39,8 @@ public interface EventDtoMapper {
         r.setLocationName(event.getLocationName());
         r.setLatitude(event.getLatitude());
         r.setLongitude(event.getLongitude());
+        r.setOriginLatitude(event.getOriginLatitude());
+        r.setOriginLongitude(event.getOriginLongitude());
 
         if (r instanceof FlightEventResponse        fr) fr.setFlight(event.getFlight());
         if (r instanceof AccommodationEventResponse ar) ar.setAccommodation(event.getAccommodation());

@@ -34,4 +34,6 @@ public abstract class EventResponse {
     protected String         locationName;
     protected Double         latitude;
     protected Double         longitude;
+    protected Double         originLatitude;
+    protected Double         originLongitude;
 }
